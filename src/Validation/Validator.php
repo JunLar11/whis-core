@@ -2,6 +2,8 @@
 
 namespace Whis\Validation;
 
+use Whis\Validation\Exceptions\ValidationException;
+
 class Validator
 {
     /**

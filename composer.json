@@ -2,6 +2,7 @@
     "name": "junlar11/whis-core",
     "description": "A new PHP MVC framework intended for use on any hosting. It can be shared hosting, VPS or a Server.",
     "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Whis\\": "src/"
