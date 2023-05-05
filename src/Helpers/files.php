@@ -16,7 +16,7 @@ function download(string $filename, string $folder = null)
     Storage::downloadUploaded($filename);
     return;
 }
-function file(string $filename, string $folder = null)
+function getFile(string $filename, string $folder = null)
 {
     if (!is_null($folder)) {
         Storage::assets($folder, $filename);
