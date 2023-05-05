@@ -1,6 +1,6 @@
 <?php
 
-namespace Whisdation\Rules;
+namespace Whis\Validation\Rules;
 
 class EmailRule implements ValidationRule
 {
