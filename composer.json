@@ -1,0 +1,42 @@
+{
+    "name": "junlar11/whis-core",
+    "description": "A new PHP MVC framework intended for use on any hosting. It can be shared hosting, VPS or a Server.",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Whis\\": "src/"
+        }
+    },
+    "scripts": {
+        "tests": "phpunit --color=always --testdox -v tests/",
+        "csfixer": "php-cs-fixer fix --diff"
+      },
+      "autoload-dev": {
+        "psr-4": {
+          "Whis\\Tests\\": "tests"
+        },
+        "files": [
+          "src/Helpers/app.php",
+          "src/Helpers/http.php",
+          "src/Helpers/string.php",
+          "src/Helpers/session.php",
+          "src/Helpers/auth.php",
+          "src/Helpers/files.php"
+        ]
+      },
+    "authors": [
+        {
+            "name": "Juan Larios",
+            "email": "juanjosedejesuslarios@gmail.com"
+        }
+    ],
+    "require-dev": {
+        "phpunit/phpunit": "^10.1",
+        "friendsofphp/php-cs-fixer": "^3.16"
+    },
+    "require": {
+        "vlucas/phpdotenv": "^5.5",
+        "symfony/console": "^6.2",
+        "ramsey/uuid": "^4.7"
+    }
+}
