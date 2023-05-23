@@ -114,8 +114,8 @@ class StencilEngine implements ViewEngine
     {
         $layoutContent=$this->renderLayout($layout??$this->defaultLayout);
         $code = file_get_contents($file);
-        $code=str_replace($this->contentAnnotation, $code, $layoutContent);
-        $code=str_replace($this->csrfAnnotation, $code, '<input type="hidden" name="_token" value="{{{$token}}}">');
+        $code=str_replace($this->contentAnnotation, $code, $layoutContent);       
+        $code=str_replace($this->csrfAnnotation, '<input type="hidden" name="_token" value="{{{$token}}}">', $code);
         preg_match_all('/{% ?(extends|include) ?\'?(.*?)\'? ?%}/i', $code, $matches, PREG_SET_ORDER);
         foreach ($matches as $value) {
             $code = str_replace($value[0], $this->includeFiles($this->viewsPath .'/'. $value[2]), $code);
