@@ -4,6 +4,7 @@ namespace Whis\Auth;
 
 use App\Controllers\Auth\LoginController;
 use App\Controllers\Auth\RegisterController;
+use App\Middlewares\CsrfSaverMiddleware;
 use Whis\Auth\Authenticators\Authenticator;
 use Whis\Routing\Route;
 
