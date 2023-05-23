@@ -20,7 +20,7 @@ class MakeMiddleware extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output) {
         $name = $input->getArgument("name");
-        $template = file_get_contents(resourcesDirectory() . "/templates/middleware.php");
+        $template = file_get_contents(resourcesDirectory() . "/resources/templates/middleware.php");
         $template = str_replace("MiddlewareName", $name, $template);
         if (!file_exists(App::$root . "/app/Middlewares")) {
             mkdir(App::$root . "/app/Middlewares", 0744);

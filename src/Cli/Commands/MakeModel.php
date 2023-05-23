@@ -25,7 +25,7 @@ class MakeModel extends Command {
         $name = $input->getArgument("name");
         $migration = $input->getOption("migration");
 
-        $template = file_get_contents(resourcesDirectory() . "/templates/model.php");
+        $template = file_get_contents(resourcesDirectory() . "/resources/templates/model.php");
         $template = str_replace("ModelName", $name, $template);
         if (!file_exists(App::$root . "/app/Models")) {
             mkdir(App::$root . "/app/Models", 0744);

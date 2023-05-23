@@ -146,7 +146,7 @@ class Response
     {
         return (new self())
             ->setContentType('application/json')
-            ->setContent(json_encode($data));
+            ->setContent(json_encode($data,JSON_UNESCAPED_UNICODE));
     }
 
     /**
@@ -158,7 +158,7 @@ class Response
     public static function text(string $text): self
     {
         return (new self())
-            ->setContentType('text/plain')
+            ->setContentType('text/plain; charset=UTF-8')
             ->setContent($text);
     }
 

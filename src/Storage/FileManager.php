@@ -20,7 +20,7 @@ class FileManager
 
         if (file_exists($file_path)) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_type = finfo_file($finfo, $file_path);
+            $mime_type=$this->getContentType($file_path, $finfo);
             finfo_close($finfo);
 
             header('Content-Type: ' . $mime_type);
@@ -40,9 +40,8 @@ class FileManager
 
         if (file_exists($file_path)) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_type = finfo_file($finfo, $file_path);
+            $mime_type=$this->getContentType($file_path, $finfo);
             finfo_close($finfo);
-
             header('Content-Type: ' . $mime_type);
             header('Content-Length: ' . filesize($file_path));
 
@@ -59,8 +58,8 @@ class FileManager
         $file_path = $this->storageDirectory.'/'.$filename;
         if (file_exists($file_path)) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_type = finfo_file($finfo, $file_path);
-            finfo_close($finfo);
+            
+            $mime_type=$this->getContentType($file_path, $finfo);
 
             header('Content-Type: ' . $mime_type);
             
@@ -80,7 +79,7 @@ class FileManager
         $file_path = $this->storageDirectory.'/'.$filename;
         if (file_exists($file_path)) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_type = finfo_file($finfo, $file_path);
+            $mime_type=$this->getContentType($file_path, $finfo);
             finfo_close($finfo);
 
             header('Content-Type: ' . $mime_type);
@@ -93,6 +92,24 @@ class FileManager
             header('HTTP/1.0 404 Not Found');
             echo 'File not found.';
             exit;
+        }
+    }
+
+    private function getContentType($file_path, $finfo)
+    {
+        switch(pathinfo($file_path, PATHINFO_EXTENSION)){
+            case "css":
+                return "text/css";
+                break;
+            case "js":
+                return "text/javascript";
+                break;
+            case "html":
+                return "text/html";
+                break;
+            default:
+                return finfo_file($finfo, $file_path);
+                break;
         }
     }
 

@@ -38,6 +38,8 @@
     "require": {
         "vlucas/phpdotenv": "^5.5",
         "symfony/console": "^6.2",
-        "ramsey/uuid": "^4.7"
+        "ramsey/uuid": "^4.7",
+        "pascaldevink/shortuuid": "^4.0",
+        "phlak/strgen": "^3.0"
     }
 }

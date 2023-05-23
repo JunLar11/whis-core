@@ -23,6 +23,7 @@ class Session
             $this->storage->remove($key);
         }
         $this->ageFlashData();
+        $this->storage->save();
     }
 
     public function ageFlashData()

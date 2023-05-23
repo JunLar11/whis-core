@@ -59,6 +59,7 @@ class PhpNativeServer implements Server
     {
         //var_dump($_SERVER);
         $uri="/".$this->removeQueryStringVariables(parse_url($_SERVER['QUERY_STRING'], PHP_URL_PATH));
+        //$query_string=parse_url($_SERVER['QUERY_STRING'], PHP_URL_PATH);
         return (new Request())
             ->setUri($uri)
             ->setMethod(HttpMethod::from($_SERVER['REQUEST_METHOD']))
@@ -91,10 +92,13 @@ class PhpNativeServer implements Server
 
     protected function getQueryStringVariables(string $url):array
     {
-        if(strpos($url, '&') == false){
+        
+        if(strpos(parse_url($_SERVER['QUERY_STRING'], PHP_URL_PATH), '&') == false){
             return [];
         }
-        $query_string = str_replace($url."&","", $_SERVER["QUERY_STRING"]);
+        //var_dump($url);
+        $query_string = str_replace($url."&","", "/".parse_url($_SERVER['QUERY_STRING'], PHP_URL_PATH));
+        //var_dump($query_string);
         $query_array=[];
         if (strpos($query_string, '&') !== false) {
             $query_string = explode('&', $query_string);
@@ -109,6 +113,7 @@ class PhpNativeServer implements Server
         return $query_array;
 
     }
+
 
     protected function removeQueryStringVariables(string $url)
     {

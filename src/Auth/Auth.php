@@ -20,8 +20,8 @@ class Auth
     public static function Routes():void{
         Route::get('/register', [RegisterController::class,'create']);
         Route::get('/login', [LoginController::class,'create']);
-        Route::post('/login', [LoginController::class,'store']);
-        Route::post('/register', [RegisterController::class,'store']);
+        Route::post('/login', [LoginController::class,'store'])->setMiddlewares([CsrfSaverMiddleware::class]);
+        Route::post('/register', [RegisterController::class,'store'])->setMiddlewares([CsrfSaverMiddleware::class]);
         Route::get('/logout', [LoginController::class,'destroy']);
 
     }

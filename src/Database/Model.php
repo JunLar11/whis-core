@@ -28,6 +28,10 @@ abstract class Model
         self::$driver = $driver;
     }
 
+    public static function getDatabaseDriver(): DatabaseDriver{
+        return self::$driver;
+    }
+
     public function __construct()
     {
         if (is_null($this->table)) {
@@ -172,6 +176,42 @@ abstract class Model
         $column = filter_var($column, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
         $query = 'SELECT * FROM ' . $instance->table . ' WHERE ' . $column . ' = :value ORDER BY ' . $orderBy . (($desc == true) ? ' DESC' : ' ASC');
+        //return [$query];
+
+        $result = self::$driver->statement($query, [':value' => $value]);
+        //return [count($result), $result];
+        //return [$result];
+        //exit;
+        if (count($result) == 0) {
+            return [];
+        }
+        //return [$result];
+        $models = [$instance->setAttributes($result[0])];
+        for ($i = 1; $i < count($result); $i++) {
+            $models[] = (new static())->setAttributes($result[$i]);
+        }
+
+        return array_map(fn ($user) => $user->toArray(), $models);
+    }
+
+    public static function search(mixed $column, mixed $value, mixed $orderBy = null, bool $desc = false, int $limit=5): ?array
+    {
+        $instance = new static();
+        /*if ((!in_array($column, $instance->fillable) && !in_array($column, $instance->hidden)) || is_null($column)) {
+            throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
+        }*/
+        if (!is_null($orderBy) && (!in_array($orderBy, $instance->fillable) && !in_array($orderBy, $instance->hidden))) {
+            throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
+        }
+
+        if (is_null($orderBy)) {
+            $orderBy = $instance->primaryKey;
+        }
+        //return ([$column, $value]);
+        $column = htmlentities($column);
+        $column = filter_var($column, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+        $query = 'SELECT * FROM ' . $instance->table . ' WHERE ' . $column . ' LIKE %'. $value .'% ORDER BY ' . $orderBy . (($desc == true) ? ' DESC' : ' ASC'). ' LIMIT '. $limit;
         //return [$query];
 
         $result = self::$driver->statement($query, [':value' => $value]);

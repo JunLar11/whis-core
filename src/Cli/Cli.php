@@ -15,6 +15,7 @@ use Whis\Database\Migrations\Migrator;
 use Dotenv\Dotenv;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Whis\Cli\Commands\MakeMiddleware;
 
 class Cli
 {
@@ -40,7 +41,7 @@ class Cli
             Migrator::class,
             fn()=>new Migrator(
                 "$root/Database/migrations",
-                resourcesDirectory()."/templates",
+                resourcesDirectory()."/resources/templates",
                 app(DatabaseDriver::class)
             )
         );
@@ -57,6 +58,7 @@ class Cli
             new MakeModel(),
             new MakeController(),
             new Serve(),
+            new MakeMiddleware()
         ]);
         $cli->run();
     }

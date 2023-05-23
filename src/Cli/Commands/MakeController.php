@@ -19,7 +19,7 @@ class MakeController extends Command {
 
     protected function execute(InputInterface $input, OutputInterface $output) {
         $name = $input->getArgument("name");
-        $template = file_get_contents(resourcesDirectory() . "/templates/controller.php");
+        $template = file_get_contents(resourcesDirectory() . "/resources/templates/controller.php");
         $template = str_replace("ControllerName", $name, $template);
         if (!file_exists(App::$root . "/app/Controllers")) {
             mkdir(App::$root . "/app/Controllers", 0744);

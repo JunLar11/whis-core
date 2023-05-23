@@ -23,5 +23,5 @@ function config(string $configuration, $default = null) {
 }
 
 function resourcesDirectory(): string {
-    return App::$root . "/resources";
+    return App::$root;
 }

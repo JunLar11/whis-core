@@ -2,6 +2,8 @@
 
 namespace Whis\View;
 
+use Whis\App;
+
 class StencilEngine implements ViewEngine
 {
     protected array $blocks = array();
@@ -12,13 +14,13 @@ class StencilEngine implements ViewEngine
     protected string $defaultLayout="main";
     protected string $contentAnnotation="@content";
     protected string $urlAnnotation="@url";
-
+    protected int $numero=0;
     protected string $extraDirectories="";
 
     public function __construct(string $viewsPath)
     {
         $this->viewsPath = $viewsPath;
-        $this->compiledPath = $viewsPath.'/compiled';
+        $this->compiledPath = App::$root."/resources/views";
     }
 
     public function render($file, array $parameters =[], string $layout=null):string
@@ -30,14 +32,13 @@ class StencilEngine implements ViewEngine
 
     protected function renderView(string $view, array $parameters=[]): string
     {
-        return $this->compileCode($this->phpFileOutput("{$this->compiledPath}/{$view}.php", $parameters));
+        return $this->phpFileOutput("{$this->compiledPath}/{$view}.php", $parameters);
     }
 
     protected function renderLayout(string $layout): string
     {
         //echo($this->viewsPath);
-        $path=str_replace($this->extraDirectories,"",$this->viewsPath);
-        return $this->compileCode($this->phpFileOutput($this->layoutPath."/{$layout}.html"));
+        return $this->phpFileOutput($this->layoutPath."/".($layout??$this->defaultLayout).".html");
     }
 
     protected function layoutDirectoryPath(): void
@@ -56,7 +57,7 @@ class StencilEngine implements ViewEngine
         include_once $phpFile;
         return ob_get_clean();
     }
-    public function compile($file,$layout=null)
+    protected function compile($file,$layout=null)
     {
         $directories=[];
         $extra="";
@@ -81,30 +82,34 @@ class StencilEngine implements ViewEngine
         }
         $compiled_file = $this->compiledPath.$extra."/{$file}.php";
         $this->layoutDirectoryPath();
-        if (!file_exists($compiled_file) || filemtime($compiled_file) < filemtime("{$this->viewsPath}/{$file}.html") || filemtime($compiled_file) < filemtime($this->layoutPath."/".$layout??$this->defaultLayout.".html")) {
+        $htmlFileTime= filemtime("{$this->viewsPath}/{$file}.html");
+        if (!file_exists($compiled_file) || filemtime($compiled_file) < $htmlFileTime || filemtime($compiled_file) < filemtime($this->layoutPath."/".($layout??$this->defaultLayout).".html")) {
             $code = self::includeFiles("{$this->viewsPath}/{$file}.html",$layout);
             $code = self::compileCode($code);
+            $this->deleteViewsNotUsed();
+        
             file_put_contents($compiled_file, '<?php class_exists(\'' . __CLASS__ . '\') or exit; ?>' . PHP_EOL . $code);
         }
     }
 
-    public function compileCode($code)
+    protected function compileCode($code)
     {
-        
+        //echo $code;
         $code = $this->compileBlock($code);
         $code = $this->compileYield($code);
         $code = $this->compileEscapedEchos($code);
         $code = $this->compileEchos($code);
         $code = $this->compilePHP($code);
         $code = $this->compileUrl($code);
+        
         return $code;
     }
-    public function compileUrl($code)
+    protected function compileUrl($code)
     {
         return str_replace($this->urlAnnotation, config("app.url"), $code);
         // Fornece: Hll Wrld f PHP;
     }
-    public function includeFiles($file,$layout=null)
+    protected function includeFiles($file,$layout=null)
     {
         $layoutContent=$this->renderLayout($layout??$this->defaultLayout);
         $code = file_get_contents($file);
@@ -117,22 +122,22 @@ class StencilEngine implements ViewEngine
         return $code;
     }
 
-    public function compilePHP($code)
+    protected function compilePHP($code)
     {
         return preg_replace('~\{%\s*(.+?)\s*\%}~is', '<?php $1 ?>', $code);
     }
 
-    public function compileEchos($code)
+    protected function compileEchos($code)
     {
         return preg_replace('~\{{\s*(.+?)\s*\}}~is', '<?php echo $1 ?>', $code);
     }
 
-    public function compileEscapedEchos($code)
+    protected function compileEscapedEchos($code)
     {
-        return preg_replace('~\{{{\s*(.+?)\s*\}}}~is', '<?php echo htmlentities($1, ENT_QUOTES, \'UTF-8\') ?>', $code);
+        return preg_replace('~\{{{\s*(.+?)\s*\}}}~is', '<?php echo (!is_null($1) && $1!="")? htmlspecialchars($1, ENT_QUOTES, "UTF-8") :"" ?>', $code); 
     }
 
-    public function compileBlock($code)
+    protected function compileBlock($code)
     {
         preg_match_all('/{% ?block ?(.*?) ?%}(.*?){% ?endblock ?%}/is', $code, $matches, PREG_SET_ORDER);
         foreach ($matches as $value) {
@@ -146,10 +151,11 @@ class StencilEngine implements ViewEngine
             }
             $code = str_replace($value[0], '', $code);
         }
+        
         return $code;
     }
 
-    public function compileYield($code)
+    protected function compileYield($code)
     {
         foreach ($this->blocks as $block => $value) {
             $code = preg_replace('/{% ?yield ?' . $block . ' ?%}/', $value, $code);
@@ -157,4 +163,31 @@ class StencilEngine implements ViewEngine
         $code = preg_replace('/{% ?yield ?(.*?) ?%}/i', '', $code);
         return $code;
     }
+
+    protected function deleteViewsNotUsed()
+    {
+        $files = glob($this->compiledPath . '/**/*.php',GLOB_BRACE);
+        $htmlFiles = glob($this->viewsPath . '/**/*.html');
+
+        $html=[];
+        foreach ($htmlFiles as $htmlFile) {
+            $html[]=str_replace('.html', '', str_replace($this->viewsPath,'',$htmlFile));
+        }
+        
+        $phpFiles=[];
+        foreach ($files as $file) {
+            $currentFile = $file;
+            $phpFiles[]=str_replace('.php','',str_replace($this->compiledPath,'',$file));
+        }
+        // var_dump($html);
+        // var_dump($phpFiles);
+        // var_dump($files);
+        $i=0;
+        foreach ($phpFiles as $file) {
+            if (!in_array($file,$html)) {
+                unlink($files[$i]);
+            }
+        }
+    }
+    
 }

@@ -47,7 +47,7 @@ class Validator
 
                 if (!$rule->isValid($field, $this->data)) {
                     $message=$messages[$field][Rule::nameOf($rule)]??$rule->message();
-                    $fieldUnderValidationErrors[Rule::nameOf($rule)]=$message;
+                    $fieldUnderValidationErrors[Rule::nameOf($rule)]=str_replace(":field", $field, $message);
                 }
             }
             if (count($fieldUnderValidationErrors)>0) {

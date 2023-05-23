@@ -38,17 +38,23 @@ class Storage
         // Route::get('/{folder}/{filename:.*}', function (string $folder, string $filename) {
         //     self::assets($folder, $filename);
         // });
+
+        /** 
+         * Cambiar de orden las rutas para que no se sobrepongan con las rutas de la aplicación ni entre ellas.
+        */
+        Route::get('/download/storage/{filename:.*}', function (string $filename) {
+            self::downloadUploaded($filename);
+        });
+        Route::get('/storage/{filename:.*}', function (string $filename) {
+            self::uploaded($filename);
+        });
+
+
         Route::get('/download/{folder}/{filename:.*}', function (string $folder, string $filename) {
             self::download($folder, $filename);
         });
         Route::get('/{folder}/{filename:.*}', function (string $folder, string $filename) {
             self::assets($folder, $filename);
-        });
-        Route::get('&download/storage/{filename:.*}', function (string $filename) {
-            self::downloadUploaded($filename);
-        });
-        Route::get('/storage/{filename:.*}', function (string $filename) {
-            self::uploaded($filename);
         });
     }
 }
