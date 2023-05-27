@@ -65,7 +65,9 @@ class PhpNativeServer implements Server
             ->setMethod(HttpMethod::from($_SERVER['REQUEST_METHOD']))
             ->setHeaders(getallheaders())
             ->setData($this->requestData())
-            ->setQuery($this->getQueryStringVariables($uri));
+            ->setQuery($this->getQueryStringVariables($uri))
+            ->setFiles($this->uploadedFiles());
+
     }
 
 

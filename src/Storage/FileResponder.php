@@ -4,19 +4,86 @@ namespace Whis\Storage;
 
 use Whis\App;
 
-class FileManager
+class FileResponder
 {
 
     protected string $storageDirectory;
     protected string $assetsDirectory;
     
     public function __construct(string $storageDirectory) {
-        $this->storageDirectory = $storageDirectory;
-        $this->assetsDirectory=App::$root."/resources/assets";
+        $this->storageDirectory = $storageDirectory.'/';
+        $this->assetsDirectory=App::$root."/resources/assets/";
     }
 
-    public function download(string $folder, string $filename) {
-        $file_path = $this->assetsDirectory.'/'.$folder.'/'.$filename; // Set the file path (without extension)
+    
+
+    public function getFile(string $filename=null,bool $asset=false, string $alternativeDirectory=null){
+        if(!is_null($alternativeDirectory)){
+            $directories = explode("/", $filename);
+            $filename = array_pop($directories);
+        }
+        if($asset){
+            
+            $this->assets($filename,$alternativeDirectory);
+        }else{
+            $this->uploaded($filename,$alternativeDirectory);
+        }
+    }
+
+    public function downloadFile(string $filename=null,bool $asset=false, string $alternativeDirectory=null){
+        if(!is_null($alternativeDirectory)){
+            $directories = explode("/", $filename);
+            $filename = array_pop($directories);
+        }
+        if($asset){
+            
+            $this->download($filename,$alternativeDirectory);
+        }else{
+            $this->downloadUploaded($filename,$alternativeDirectory);
+        }
+    }
+
+    public function assets(string $filename, string $alternativeDirectory=null) {
+        $file_path = ((is_null($alternativeDirectory))?$this->assetsDirectory:App::$root.'/'.$alternativeDirectory).'/'.$filename; // Set the file path (without extension)
+
+        if (file_exists($file_path)) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime_type=$this->getContentType($file_path, $finfo);
+            finfo_close($finfo);
+            header('Content-Type: ' . $mime_type);
+            header('Content-Length: ' . filesize($file_path));
+
+            readfile($file_path);
+            exit;
+        } else {
+            header('HTTP/1.0 404 Not Found');
+            echo 'File not found.';
+            exit;
+        }
+    }
+    public function uploaded(string $filename, string $alternativeDirectory=null)
+    {
+        $file_path = ((is_null($alternativeDirectory))?$this->storageDirectory:App::$root.'/'.$alternativeDirectory).'/'.$filename; // Set the file path (without extension)
+        if (file_exists($file_path)) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            
+            $mime_type=$this->getContentType($file_path, $finfo);
+
+            header('Content-Type: ' . $mime_type);
+            
+            header('Content-Length: ' . filesize($file_path));
+
+            readfile($file_path);
+            exit;
+        } else {
+            header('HTTP/1.0 404 Not Found');
+            echo 'File not found.';
+            exit;
+        }
+    }
+
+    public function download(string $filename, string $alternativeDirectory=null) {
+        $file_path = ((is_null($alternativeDirectory))?$this->assetsDirectory:App::$root.'/'.$alternativeDirectory).'/'.$filename; // Set the file path (without extension)
 
         if (file_exists($file_path)) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -35,48 +102,10 @@ class FileManager
             exit;
         }
     }
-    public function assets(string $folder, string $filename) {
-        $file_path = $this->assetsDirectory.'/'.$folder.'/'.$filename; // Set the file path (without extension)
 
-        if (file_exists($file_path)) {
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_type=$this->getContentType($file_path, $finfo);
-            finfo_close($finfo);
-            header('Content-Type: ' . $mime_type);
-            header('Content-Length: ' . filesize($file_path));
-
-            readfile($file_path);
-            exit;
-        } else {
-            header('HTTP/1.0 404 Not Found');
-            echo 'File not found.';
-            exit;
-        }
-    }
-    public function uploaded(string $filename)
+    public function downloadUploaded(string $filename, string $alternativeDirectory=null)
     {
-        $file_path = $this->storageDirectory.'/'.$filename;
-        if (file_exists($file_path)) {
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            
-            $mime_type=$this->getContentType($file_path, $finfo);
-
-            header('Content-Type: ' . $mime_type);
-            
-            header('Content-Length: ' . filesize($file_path));
-
-            readfile($file_path);
-            exit;
-        } else {
-            header('HTTP/1.0 404 Not Found');
-            echo 'File not found.';
-            exit;
-        }
-    }
-
-    public function downloadUploaded(string $filename)
-    {
-        $file_path = $this->storageDirectory.'/'.$filename;
+        $file_path = ((is_null($alternativeDirectory))?$this->storageDirectory:App::$root.'/'.$alternativeDirectory).'/'.$filename; // Set the file path (without extension)
         if (file_exists($file_path)) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mime_type=$this->getContentType($file_path, $finfo);

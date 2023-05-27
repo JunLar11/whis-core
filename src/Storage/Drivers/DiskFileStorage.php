@@ -2,7 +2,8 @@
 
 namespace Whis\Storage\Drivers;
 
-use Whis\Storage\FileManager;
+use Whis\App;
+use Whis\Storage\FileResponder;
 
 class DiskFileStorage implements FileStorageDriver
 {
@@ -12,48 +13,42 @@ class DiskFileStorage implements FileStorageDriver
 
     protected string $appUrl;
 
-    protected FileManager $fileManager;
+    protected FileResponder $fileResponder;
 
     public function __construct(string $storageDirectory, string $storageUri, string $appUrl) {
         $this->storageDirectory = $storageDirectory;
         $this->storageUri = $storageUri;
         $this->appUrl = $appUrl;
-        $this->fileManager = new FileManager($storageDirectory);
+        $this->fileResponder = new FileResponder($storageDirectory);
     }
-    public function put(string $path, mixed $content): string {
+    public function put(string $path, mixed $content, string $alternativeDirectory=null, string $customUrl=null): string {
         if (!is_dir($this->storageDirectory)) {
             mkdir($this->storageDirectory);
         }
 
         $directories = explode("/", $path);
         $file = array_pop($directories);
-        $dir = "$this->storageDirectory/";
+        $dir = (is_null($alternativeDirectory))?"$this->storageDirectory/":App::$root."/".$alternativeDirectory."/";
 
         if (count($directories) > 0) {
-            $dir = $this->storageDirectory . "/" . implode("/", $directories);
+            $dir = ((is_null($alternativeDirectory))?"$this->storageDirectory":App::$root."/".$alternativeDirectory) . "/" . implode("/", $directories);
             @mkdir($dir, recursive: true);
         }
 
         file_put_contents("$dir/$file", $content);
 
-        return "$this->appUrl/$this->storageUri/$path";
+        return "$this->appUrl/".(is_null($customUrl)?(($alternativeDirectory??$this->storageUri)."/$path"):($customUrl."/$file"));
     }
 
-    public function download(string $folder, string $filename) {
-        $this->fileManager->download($folder, $filename);
+    public function getFile(string $filename=null,bool $asset=false, string $alternativeDirectory=null)
+    {
+        $this->fileResponder->getFile($filename, $asset, $alternativeDirectory);
     }
-
-    public function downloadUploaded(string $filename) {
-        $this->fileManager->downloadUploaded($filename);
+    public function downloadFile(string $filename=null,bool $asset=false, string $alternativeDirectory=null)
+    {
+        $this->fileResponder->downloadFile($filename, $asset, $alternativeDirectory);
+        
     }
-    public function assets(string $folder, string $filename) {
-        $this->fileManager->assets($folder, $filename);
-    }
-
-    public function uploaded(string $filename) {
-        $this->fileManager->uploaded($filename);
-    }
-
     public function remove(string $path): bool {
         if (file_exists($path)) {
             unlink($path);

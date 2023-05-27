@@ -1,6 +1,7 @@
 <?php
 
 namespace Whis\Storage;
+use PHLAK\StrGen\Generator as StrGenerator;
 
 class File
 {
@@ -31,12 +32,17 @@ class File
         return str_starts_with($this->type, "image");
     }
 
+    public function originalName(): string {
+        return $this->originalName;
+    }
+
     /**
      * Type of the image.
      *
      * @return string|null
      */
-    public function extension(): ?string {
+    public function extension(bool $getFromName = false): ?string {
+        if($getFromName) return pathinfo($this->originalName, PATHINFO_EXTENSION);
         return match ($this->type) {
             "image/jpeg" => "jpeg",
             "image/png" => "png",
@@ -51,9 +57,21 @@ class File
      *
      * @return string URL.
      */
-    public function store(?string $directory = null): string {
-        $file = uniqid() . $this->extension();
+    public function store(?string $directory = null, string $alternativeDirectory=null, bool $getRealExtension=false, string $customUrl=null): string {
+        $file = (new StrGenerator())->alphaNumeric(20) . $this->extension($getRealExtension);
         $path = is_null($directory) ? $file : "$directory/$file";
-        return Storage::put($path, $this->content);
+        return Storage::put($path, $this->content, $alternativeDirectory, $customUrl);
+    }
+
+    public static function remove(string $path): bool {
+        return Storage::remove($path);
+    }
+
+    public static function download(string $filename, ?bool $asset=false, string $alternativeDirectory=null ,string $folder="") {
+        return Storage::download($filename, $asset, $alternativeDirectory, $folder);
+    }
+
+    public static function get(string $filename, ?bool $asset=false, string $alternativeDirectory=null ,string $folder="") {
+        return Storage::get($filename, $asset, $alternativeDirectory, $folder);
     }
 }

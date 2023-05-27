@@ -207,11 +207,17 @@ class Request
         return $parameters[$key] ?? null;
     }
 
-    public function validate(array $validationRules, array $messages = []): array
+    public function validate(array $validationRules, bool $backWithErrors=true, array $messages = []): array
     {
         //($this->data);
-        $validator = new Validator($this->data);
-        return $validator->validate($validationRules, $messages);
+        $data=$this->data;
+        if(!is_null($this->files)){
+            foreach($this->files as $key=>$file){
+                $data[$key]=$file->originalName();
+            }
+        }
+        $validator = new Validator($data);
+        return $validator->validate($validationRules, $messages, $backWithErrors);
     }
 
         /**
@@ -220,8 +226,18 @@ class Request
      * @param string $name
      * @return File|null
      */
-    public function file(string $name): ?File {
-        return $this->files[$name] ?? null;
+    public function file(string $name,string $validate=null, bool $backWithErrors=true, array|string $messages = null): ?File{
+        if(is_null($validate)){
+            return $this->files[$name] ?? null;
+        }
+        if(!is_null($this->files[$name])){
+            $validator=new Validator([$name=>($this->files[$name]->originalName())]);
+            $file=$validator->validate([$name=>$validate],((is_array($messages)||is_null($messages))?$messages:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
+            if(!is_null($file)||$file==true){
+                return $this->files[$name]??null;
+            }            
+        }
+        return null;
     }
 
     /**

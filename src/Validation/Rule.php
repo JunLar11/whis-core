@@ -11,6 +11,7 @@ use Whis\Validation\Rules\RequiredRule;
 use Whis\Validation\Rules\RequiredWhenRule;
 use Whis\Validation\Rules\ValidationRule;
 use Whis\Validation\Rules\RequiredWithRule;
+use Whis\Validation\Rules\FiletypeRule;
 use ReflectionClass;
 
 class Rule
@@ -24,6 +25,7 @@ class Rule
         EmailRule::class,
         NumberRule::class,
         LessThanRule::class,
+        FiletypeRule::class,
     ];
 
     public static function loadDefaultRules(): void

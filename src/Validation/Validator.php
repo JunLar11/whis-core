@@ -18,7 +18,7 @@ class Validator
         $this->data = $data;
     }
 
-    public function validate(array $validationRules, array $messages=[]): array
+    public function validate(array $validationRules, array $messages=[], bool $bachWithErrors=true): array
     {
         $validated=[];
         $errors=[];
@@ -57,7 +57,12 @@ class Validator
             }
         }
         if (count($errors)>0) {
-            throw new ValidationException($errors);
+            if ($bachWithErrors) {
+                throw new ValidationException($errors);
+            }else{
+                session()->flash('_errors', $errors);
+                session()->flash('_old', request()->data());
+            }
         }
         return $validated;
     }

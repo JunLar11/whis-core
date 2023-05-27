@@ -13,6 +13,6 @@ class RequiredRule implements ValidationRule
         if (!array_key_exists($field, $data)) {
             return false;
         }
-        return isset($data[$field]) && $data[$field] !== "";
+        return isset($data[$field]) && ($data[$field] !== ""||$data[$field] !== false||$data[$field]!==[]) && !is_null($data[$field]) && !empty($data[$field]);
     }
 }

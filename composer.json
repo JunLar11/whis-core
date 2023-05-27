@@ -40,6 +40,8 @@
         "symfony/console": "^6.2",
         "ramsey/uuid": "^4.7",
         "pascaldevink/shortuuid": "^4.0",
-        "phlak/strgen": "^3.0"
+        "phlak/strgen": "^3.0",
+        "guzzlehttp/guzzle": "^7.7",
+        "defuse/php-encryption": "^2.3"
     }
 }
