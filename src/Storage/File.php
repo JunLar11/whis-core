@@ -74,7 +74,7 @@ class File
      * @return string URL.
      */
     public function store(?string $directory = null, string $alternativeDirectory=null, bool $getRealExtension=false, string $customUrl=null): string {
-        $file = (new StrGenerator())->alphaNumeric(20) . $this->extension($getRealExtension);
+        $file = (new StrGenerator())->alphaNumeric(20) .".".$this->extension($getRealExtension);
         $path = is_null($directory) ? $file : "$directory/$file";
         return Storage::put($path, $this->content, $alternativeDirectory, $customUrl);
     }
