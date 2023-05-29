@@ -1,27 +1,19 @@
 <?php
 use Whis\Storage\Storage;
 
-function remove(string $path): bool {
-    return Storage::remove($path);
-}
-function put(string $path, mixed $content): string {
-    return Storage::put($path, $content);
-}
-function download(string $filename, string $folder = null)
-{
-    if (!is_null($folder)) {
-        Storage::download($folder, $filename);
-        return;
+
+function return_bytes($val) {
+    $val = trim($val);
+    $last = strtolower($val[strlen($val)-1]);
+    switch($last) {
+        // The 'G' modifier is available
+        case 'g':
+            $val *= 1024;
+        case 'm':
+            $val *= 1024;
+        case 'k':
+            $val *= 1024;
     }
-    Storage::downloadUploaded($filename);
-    return;
-}
-function getFile(string $filename, string $folder = null)
-{
-    if (!is_null($folder)) {
-        Storage::assets($folder, $filename);
-        return;
-    }
-    Storage::uploaded($filename);
-    return;
+
+    return $val;
 }

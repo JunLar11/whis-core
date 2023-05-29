@@ -17,10 +17,12 @@ class File
         private mixed $content,
         private string $type,
         private string $originalName,
+        private int $size = 0,
     ) {
         $this->content = $content;
         $this->type = $type;
         $this->originalName = $originalName;
+        $this->size = $size;
     }
 
     /**
@@ -34,6 +36,20 @@ class File
 
     public function originalName(): string {
         return $this->originalName;
+    }
+
+    public function size(): int {
+        return $this->size;
+    }
+
+    public function getAttribute(string $attribute): mixed {
+        return match ($attribute) {
+            "content" => $this->content,
+            "type" => $this->type,
+            "originalName" => $this->originalName,
+            "size" => $this->size,
+            default => null,
+        };
     }
 
     /**

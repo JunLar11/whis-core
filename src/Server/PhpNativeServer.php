@@ -6,6 +6,7 @@ use Whis\Http\HttpMethod;
 use Whis\Http\Request;
 use Whis\Http\Response;
 use Whis\Storage\File;
+use Whis\Validation\Exceptions\ValidationException;
 
 class PhpNativeServer implements Server
 {
@@ -17,8 +18,49 @@ class PhpNativeServer implements Server
      */
     protected function uploadedFiles(): array {
         $files = [];
+        $file_number=0;
+        $total_size=0;
         foreach ($_FILES as $key => $file) {
             if (!empty($file["tmp_name"])) {
+                if(is_array($file["tmp_name"])) {
+                    $files[$key]=[];
+                    $file_number+=count($file["tmp_name"]);
+                    if($file_number > 10) {
+                        throw new ValidationException([$key => "Too many files"]);
+                    }
+                    foreach($file["tmp_name"] as $index => $value) {
+                        if(return_bytes(ini_get('post_max_size')) < $file["size"][$index])
+                        {
+                            throw new ValidationException([$key => "File size is too big"]);
+                        }
+                        $total_size+=$file["size"][$index];
+                        if(return_bytes(ini_get('upload_max_filesize')) < $total_size)
+                        {
+                            throw new ValidationException([$key => "Total file size is too big"]);
+                        }
+
+                        $files[$key][$index] = new File(
+                            file_get_contents($file["tmp_name"][$index]),
+                            $file["type"][$index],
+                            $file["name"][$index],
+                        );
+
+                    }
+                    continue;
+                }
+                if(return_bytes(ini_get('post_max_size')) < $file["size"])
+                {
+                    throw new ValidationException([$key => "File size is too big"]);
+                }
+                $file_number++;
+                if($file_number > 10) {
+                    throw new ValidationException([$key => "Too many files"]);
+                }
+                $total_size+=$file["size"];
+                if(return_bytes(ini_get('upload_max_filesize')) < $total_size)
+                {
+                    throw new ValidationException([$key => "Total file size is too big"]);
+                }
                 $files[$key] = new File(
                     file_get_contents($file["tmp_name"]),
                     $file["type"],
