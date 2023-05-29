@@ -12,6 +12,7 @@ use Whis\Validation\Rules\RequiredWhenRule;
 use Whis\Validation\Rules\ValidationRule;
 use Whis\Validation\Rules\RequiredWithRule;
 use Whis\Validation\Rules\FiletypeRule;
+use Whis\Validation\Rules\FilesizeRule;
 use ReflectionClass;
 
 class Rule
@@ -26,6 +27,7 @@ class Rule
         NumberRule::class,
         LessThanRule::class,
         FiletypeRule::class,
+        FilesizeRule::class,
     ];
 
     public static function loadDefaultRules(): void
