@@ -2,9 +2,12 @@
 use Whis\Storage\Storage;
 
 
-function return_bytes($val) {
-    $val = trim($val);
-    $last = strtolower($val[strlen($val)-1]);
+function return_bytes(string $val=null) {
+    //var_dump($val);
+    $valString=(string)($val);
+    $val = (int)trim($val);
+    $last = strtolower($valString[strlen($valString)-1]);
+    //var_dump($last);
     switch($last) {
         // The 'G' modifier is available
         case 'g':

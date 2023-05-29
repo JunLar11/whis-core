@@ -2,3 +2,4 @@
 .php-cs-fixer.php export-ignore
 .gitignore export-ignore
 .gitattributes export-ignore
+/.VSCodeCounter

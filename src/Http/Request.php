@@ -214,14 +214,25 @@ class Request
         if(!is_null($this->files)){
             foreach($this->files as $key=>$file){
                 if(is_array($file)){
+                    if(empty($file)||!isset($file[0])||empty($file[0])){
+                        $data[$key]=null;
+                        continue;
+                    }
+                    
+                    $data[$key]=$file[0]->originalName();
+                    if($validationRules[$key]=="required"){
+                        continue;
+                    }
                     $i=0;
                     foreach($file as $k=>$f){
                         $data[$key."_".$i]=$f->originalName();
-                        $i++;
+                        
                         if(isset($validationRules[$key])&&!empty($validationRules[$key])){
                             $validationRules[$key."_".$i]=$validationRules[$key];
                         }
+                        $i++;
                     }
+                    //unset($validationRules[$key]);
                     continue;
                 }
                 $data[$key]=$file->originalName();
@@ -237,7 +248,7 @@ class Request
      * @param string $name
      * @return File|null
      */
-    public function file(string $name, array|string $validate=null, bool $backWithErrors=true, array|string $messages = null): ?File{
+    public function file(string $name, array|string $validate=null, bool $backWithErrors=true, array|string $messages = null): File|array|null{
         /**
          * [attribute=>rule]
          */
@@ -252,8 +263,9 @@ class Request
                     foreach($this->files[$name] as $file){
                         
                         foreach ($validate as $attribute => $rule) {
+                            //var_dump($file->getAttribute($attribute));
                             $validator=new Validator([$name=>($file->getAttribute($attribute))]);
-                            $all_files[]=$validator->validate([$name=>$rule],((is_array($messages)||is_null($messages))?$messages:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
+                            $all_files[]=$validator->validate([$name=>$rule],((is_array($messages)||is_null($messages))?[]:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
                         }
                         
                     }
@@ -270,7 +282,7 @@ class Request
                 
                 foreach ($validate as $attribute => $rule) {
                     $validator=new Validator([$name=>($this->files[$name]->getAttribute($attribute))]);
-                    $file=$validator->validate([$name=>$validate],((is_array($messages)||is_null($messages))?$messages:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
+                    $file=$validator->validate([$name=>$validate],((is_array($messages)||is_null($messages))?[]:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
                 }
                 
                 if(!is_null($file)||$file==true){
@@ -283,7 +295,7 @@ class Request
                 $all_files=[];
                 foreach($this->files[$name] as $file){
                     $validator=new Validator([$name=>($file->originalName())]);
-                    $all_files[]=$validator->validate([$name=>$validate],((is_array($messages)||is_null($messages))?$messages:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
+                    $all_files[]=$validator->validate([$name=>$validate],((is_array($messages)||is_null($messages))?[]:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
                 }
                 $flag=true;
                 foreach($all_files as $file){
@@ -296,7 +308,7 @@ class Request
                 }
             }
             $validator=new Validator([$name=>($this->files[$name]->originalName())]);
-            $file=$validator->validate([$name=>$validate],((is_array($messages)||is_null($messages))?$messages:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
+            $file=$validator->validate([$name=>$validate],((is_array($messages)||is_null($messages))?[]:[$name=>[$validate[$name]=>$messages]]),$backWithErrors);
             if(!is_null($file)||$file==true){
                 return $this->files[$name]??null;
             }            
