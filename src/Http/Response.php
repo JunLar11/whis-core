@@ -144,6 +144,9 @@ class Response
      */
     public static function json(array $data): self
     {
+        array_walk_recursive($data, function(&$item){
+            $item = mb_convert_encoding($item, "UTF-8", mb_detect_encoding($item)); 
+        });
         return (new self())
             ->setContentType('application/json')
             ->setContent(json_encode($data,JSON_UNESCAPED_UNICODE));
@@ -157,6 +160,7 @@ class Response
      */
     public static function text(string $text): self
     {
+        $text=mb_convert_encoding($text, "UTF-8", mb_detect_encoding($text));
         return (new self())
             ->setContentType('text/plain; charset=UTF-8')
             ->setContent($text);

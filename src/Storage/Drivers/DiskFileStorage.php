@@ -21,7 +21,7 @@ class DiskFileStorage implements FileStorageDriver
         $this->appUrl = $appUrl;
         $this->fileResponder = new FileResponder($storageDirectory);
     }
-    public function put(string $path, mixed $content, string $alternativeDirectory=null, string $customUrl=null): string {
+    public function put(string $path, mixed $content, bool $returnPath=false, string $alternativeDirectory=null, string $customUrl=null): string {
         if (!is_dir($this->storageDirectory)) {
             mkdir($this->storageDirectory);
         }
@@ -36,6 +36,10 @@ class DiskFileStorage implements FileStorageDriver
         }
 
         file_put_contents("$dir/$file", $content);
+
+        if ($returnPath) {
+            return "$dir/$file";
+        }
 
         return "$this->appUrl/".(is_null($customUrl)?(($alternativeDirectory??$this->storageUri)."/$path"):($customUrl."/$file"));
     }

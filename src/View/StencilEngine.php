@@ -118,7 +118,10 @@ class StencilEngine implements ViewEngine
         $code=str_replace($this->csrfAnnotation, '<input type="hidden" name="_token" value="{{{$token}}}">', $code);
         preg_match_all('/{% ?(extends|include) ?\'?(.*?)\'? ?%}/i', $code, $matches, PREG_SET_ORDER);
         foreach ($matches as $value) {
-            $code = str_replace($value[0], $this->includeFiles($this->viewsPath .'/'. $value[2]), $code);
+            $includePath=str_replace($this->extraDirectories,"",$this->viewsPath);
+            $include=$this->includeFiles($includePath.'/'. $value[2]);
+            //var_dump($include);
+            $code = str_replace($value[0], $include, $code);
         }
         $code = preg_replace('/{% ?(extends|include) ?\'?(.*?)\'? ?%}/i', '', $code);
         return $code;

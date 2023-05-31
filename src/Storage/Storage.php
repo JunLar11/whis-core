@@ -14,8 +14,8 @@ class Storage
      * @param mixed $content
      * @return string URL of the file.
      */
-    public static function put(string $path, mixed $content, string $alternativeDirectory=null, string $customUrl=null): string {
-        return app(FileStorageDriver::class)->put($path, $content, $alternativeDirectory, $customUrl);
+    public static function put(string $path, mixed $content, bool $returnPath=false, string $alternativeDirectory=null, string $customUrl=null): string {
+        return app(FileStorageDriver::class)->put($path, $content, $returnPath, $alternativeDirectory, $customUrl);
     }
     public static function remove(string $path): bool {
         return app(FileStorageDriver::class)->remove($path);
