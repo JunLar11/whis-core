@@ -110,16 +110,21 @@ class StencilEngine implements ViewEngine
         return str_replace($this->urlAnnotation, config("app.url"), $code);
         // Fornece: Hll Wrld f PHP;
     }
-    protected function includeFiles($file,$layout=null)
+    protected function includeFiles($file,bool|string $layout=null)
     {
-        $layoutContent=$this->renderLayout($layout??$this->defaultLayout);
         $code = file_get_contents($file);
-        $code=str_replace($this->contentAnnotation, $code, $layoutContent);       
+        if(is_null($layout) || is_string($layout) && !is_bool($layout)){
+            
+            $layoutContent=$this->renderLayout($layout??$this->defaultLayout);
+            $code=str_replace($this->contentAnnotation, $code, $layoutContent);          
+        }
+         
         $code=str_replace($this->csrfAnnotation, '<input type="hidden" name="_token" value="{{{$token}}}">', $code);
         preg_match_all('/{% ?(extends|include) ?\'?(.*?)\'? ?%}/i', $code, $matches, PREG_SET_ORDER);
         foreach ($matches as $value) {
             $includePath=str_replace($this->extraDirectories,"",$this->viewsPath);
-            $include=$this->includeFiles($includePath.'/'. $value[2]);
+            $include=$this->includeFiles($includePath.'/'. $value[2],false);
+            //var_dump($include);
             //var_dump($include);
             $code = str_replace($value[0], $include, $code);
         }
