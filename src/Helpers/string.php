@@ -44,3 +44,10 @@ function uuid2bin($uuid) {
     return preg_replace('/([0-9a-f]{8})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{12})/', '$1-$2-$3-$4-$5', $string);
 }
 
+function base64_url_encode($input) {
+    return strtr(base64_encode($input), '+/=', '._-');
+   }
+   
+   function base64_url_decode($input) {
+    return base64_decode(strtr($input, '._-', '+/='));
+   }

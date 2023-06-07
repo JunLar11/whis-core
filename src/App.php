@@ -141,19 +141,31 @@ class App
             $this->terminate($this->router->resolve($this->request));
         } catch (HttpNotFoundException $e) {
             //throw new \Exception('No route matched.', 404);
-            $this->abort(Response::text("Not Found")->setStatus(404));
+            $this->abort(Response::view('error',["code"=>404,"text"=>"Page not found"])->setStatus(404));
         } catch (ValidationException $e) {
             //throw new \Exception('No route matched.', 422);
             $this->abort(back()->withErrors($e->errors(), 422));
         } catch (Throwable $e) {
             $error = new ReflectionClass($e);
-            $response = json([
-                "error" => $error->getShortName(),
-                "message" => $e->getMessage(),
-                "file" => $e->getFile(),
-                "line" => $e->getLine(),
-                "trace" => $e->getTraceAsString()
-            ]);
+            if(config("app.error")){
+                $response = json([
+                    "error" => $error->getShortName(),
+                    "message" => $e->getMessage(),
+                    "file" => $e->getFile(),
+                    "line" => $e->getLine(),
+                    "trace" => $e->getTraceAsString()
+                ]);
+            }else{
+                $log = self::$root. '/logs/' . date('Y-m-d') . '.txt';
+                ini_set('error_log', $log);
+                $message = "Uncaught exception: '" . get_class($e) . "'";
+                $message .= " with message '" . $e->getMessage() . "'";
+                $message .= "\nStack trace: " . $e->getTraceAsString();
+                $message .= "\nThrown in '" . $e->getFile() . "' on line " . $e->getLine();
+                error_log($message);
+                $response = view('error',["code"=>500, "text"=>"An error has ocurred"]);
+            }
+            
 
             //throw new \Exception('No route matched.', 500);
             $this->abort($response->setStatus(500));
