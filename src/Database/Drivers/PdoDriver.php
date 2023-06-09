@@ -33,18 +33,12 @@ class PdoDriver implements DatabaseDriver
 
     public function statement(string $query, array $bind = []): mixed
     {
-        try{
             $statement = $this->pdo->prepare($query);
             //return [$bind, $query];
             //exit;
             $statement->execute($bind);
             //return "Errormessage: " . $statement->error;
             return $statement->fetchAll(PDO::FETCH_ASSOC);
-        }catch(\PDOException $e){
-            http_response_code(500);
-            echo "An error occured. Please try again later.";
-            exit;
-        }
         
     }
 }

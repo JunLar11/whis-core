@@ -147,7 +147,22 @@ class App
             $this->abort(back()->withErrors($e->errors(), 422));
         } catch (Throwable $e) {
             $error = new ReflectionClass($e);
-            if(config("app.error")){
+            $show=config('app.error');
+            if($show=="false"){
+                if(!is_dir(self::$root . '/logs')){
+                    mkdir(self::$root . '/logs');
+                }
+                $log = self::$root . '/logs/' . date('Y-m-d') . '.txt';
+                $message="\t".date('Y-m-d H:i:s').": ".$error->getShortName() . " by ". $_SERVER['REMOTE_ADDR'];
+                $message .= "\nUncaught exception: '" . get_class($e) . "'";
+                $message .= " with message '" . $e->getMessage() . "'";
+                $message .= "\nStack trace: " . $e->getTraceAsString();
+                $message .= "\nThrown in '" . $e->getFile() . "' on line " . $e->getLine()."\n\n\n";
+                file_put_contents($log, $message, FILE_APPEND);
+                //error_log($message);
+                $response = view('errors/error',["code"=>500, "text"=>"An error has ocurred"]);
+                
+            }else{
                 $response = json([
                     "error" => $error->getShortName(),
                     "message" => $e->getMessage(),
@@ -155,16 +170,8 @@ class App
                     "line" => $e->getLine(),
                     "trace" => $e->getTraceAsString()
                 ]);
-            }else{
-                $log = self::$root. '/logs/' . date('Y-m-d') . '.txt';
-                ini_set('error_log', $log);
-                $message = "Uncaught exception: '" . get_class($e) . "'";
-                $message .= " with message '" . $e->getMessage() . "'";
-                $message .= "\nStack trace: " . $e->getTraceAsString();
-                $message .= "\nThrown in '" . $e->getFile() . "' on line " . $e->getLine();
-                error_log($message);
-                $response = view('error',["code"=>500, "text"=>"An error has ocurred"]);
             }
+            
             
 
             //throw new \Exception('No route matched.', 500);

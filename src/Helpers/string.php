@@ -51,3 +51,28 @@ function base64_url_encode($input) {
    function base64_url_decode($input) {
     return base64_decode(strtr($input, '._-', '+/='));
    }
+
+   function string_contains(string|array $haystack=null, array $needles=null, bool $returnNeedle=false):bool|array
+   {
+       if($haystack==null || $needles==null){
+            return false;
+       }
+       if(is_array($haystack) && !empty($haystack)) {
+           foreach($haystack as $key=>$value) {
+                return string_contains($value, $needles, $returnNeedle);
+           }
+       }
+       if(is_string($haystack)){
+           foreach ($needles as $needle) {
+               if (strpos($haystack, $needle) !== false) {
+                   if($returnNeedle){
+                       return $needle;
+                   }else{
+                       return true;
+                   }
+               }
+            # code...
+           }
+       }
+       return false;
+   }
