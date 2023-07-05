@@ -25,13 +25,24 @@ class MakeModel extends Command {
         $name = $input->getArgument("name");
         $migration = $input->getOption("migration");
 
-        $template = file_get_contents(resourcesDirectory() . "/resources/templates/model.php");
-        $template = str_replace("ModelName", $name, $template);
-        if (!file_exists(App::$root . "/app/Models")) {
-            mkdir(App::$root . "/app/Models", 0744);
+        $directories = "";
+        if(str_contains($name, "/")) {
+            $directories = explode("/", $name);
+            $name = array_pop($directories);
+            $directories = implode("/", $directories);
+            if (!is_dir(App::$root . "/app/Models/$directories")) {
+                mkdir(App::$root . "/app/Models/$directories", 0744, true);
+            }
         }
-        file_put_contents(App::$root . "/app/Models/$name.php", $template);
-        $output->writeln("<info>Model created => $name.php</info>");
+        
+
+        $template = file_get_contents(resourcesDirectory() . "/resources/templates/model.php");
+        $template = str_replace("ModelName", $name."Model", $template);
+        if (!file_exists(App::$root . "/app/Models/".$directories)) {
+            mkdir(App::$root . "/app/Models/". $directories, 0744);
+        }
+        file_put_contents(App::$root . "/app/Models/$directories/$name"."Model.php", $template);
+        $output->writeln("<info>Model created => $name"."Model.php</info>");
 
         if ($migration !== false) {
             app(Migrator::class)->make("create_{$name}s_table");

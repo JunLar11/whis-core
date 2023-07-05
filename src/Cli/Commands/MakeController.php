@@ -19,13 +19,22 @@ class MakeController extends Command {
 
     protected function execute(InputInterface $input, OutputInterface $output) {
         $name = $input->getArgument("name");
-        $template = file_get_contents(resourcesDirectory() . "/resources/templates/controller.php");
-        $template = str_replace("ControllerName", $name, $template);
-        if (!file_exists(App::$root . "/app/Controllers")) {
-            mkdir(App::$root . "/app/Controllers", 0744);
+        $directories = "";
+        if(str_contains($name, "/")) {
+            $directories = explode("/", $name);
+            $name = array_pop($directories);
+            $directories = implode("/", $directories);
+            if (!is_dir(App::$root . "/app/Controllers/$directories")) {
+                mkdir(App::$root . "/app/Controllers/$directories", 0744, true);
+            }
         }
-        file_put_contents(App::$root . "/app/Controllers/$name.php", $template);
-        $output->writeln("<info>Controller created => $name.php</info>");
+        $template = file_get_contents(resourcesDirectory() . "/resources/templates/controller.php");
+        $template = str_replace("ControllerName", $name."Controller", $template);
+        if (!file_exists(App::$root . "/app/Controllers/".$directories)) {
+            mkdir(App::$root . "/app/Controllers/".$directories, 0744);
+        }
+        file_put_contents(App::$root . "/app/Controllers/$directories/$name"."Controller.php", $template);
+        $output->writeln("<info>Controller created => $name"."Controller.php</info>");
 
         return Command::SUCCESS;
     }

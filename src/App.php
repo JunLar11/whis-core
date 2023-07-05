@@ -141,7 +141,7 @@ class App
             $this->terminate($this->router->resolve($this->request));
         } catch (HttpNotFoundException $e) {
             //throw new \Exception('No route matched.', 404);
-            $this->abort(Response::view('error',["code"=>404,"text"=>"Page not found"])->setStatus(404));
+            $this->abort(Response::view('errors/error',["code"=>404,"text"=>"Page not found"],"error")->setStatus(404));
         } catch (ValidationException $e) {
             //throw new \Exception('No route matched.', 422);
             $this->abort(back()->withErrors($e->errors(), 422));
@@ -160,7 +160,7 @@ class App
                 $message .= "\nThrown in '" . $e->getFile() . "' on line " . $e->getLine()."\n\n\n";
                 file_put_contents($log, $message, FILE_APPEND);
                 //error_log($message);
-                $response = view('errors/error',["code"=>500, "text"=>"An error has ocurred"]);
+                $response = view('errors/error',["code"=>500, "text"=>"An error has ocurred"],"error");
                 
             }else{
                 $response = json([

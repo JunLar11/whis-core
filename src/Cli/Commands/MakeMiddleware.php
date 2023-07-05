@@ -20,12 +20,22 @@ class MakeMiddleware extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output) {
         $name = $input->getArgument("name");
-        $template = file_get_contents(resourcesDirectory() . "/resources/templates/middleware.php");
-        $template = str_replace("MiddlewareName", $name, $template);
-        if (!file_exists(App::$root . "/app/Middlewares")) {
-            mkdir(App::$root . "/app/Middlewares", 0744);
+        $directories = "";
+        if(str_contains($name, "/")) {
+            $directories = explode("/", $name);
+            $name = array_pop($directories);
+            $directories = implode("/", $directories);
+            if (!is_dir(App::$root . "/app/Middlewares/$directories")) {
+                mkdir(App::$root . "/app/Middlewares/$directories", 0744, true);
+            }
         }
-        file_put_contents(App::$root . "/app/Middlewares/$name"."Middleware.php", $template);
+
+        $template = file_get_contents(resourcesDirectory() . "/resources/templates/middleware.php");
+        $template = str_replace("MiddlewareName", $name."Middleware", $template);
+        if (!file_exists(App::$root . "/app/Middlewares/".$directories)) {
+            mkdir(App::$root . "/app/Middlewares/".$directories, 0744);
+        }
+        file_put_contents(App::$root . "/app/Middlewares/$directories/$name"."Middleware.php", $template);
         $output->writeln("<info>Controller created => $name"."Middleware.php</info>");
 
         return Command::SUCCESS;
