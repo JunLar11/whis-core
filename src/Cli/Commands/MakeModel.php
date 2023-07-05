@@ -38,6 +38,7 @@ class MakeModel extends Command {
 
         $template = file_get_contents(resourcesDirectory() . "/resources/templates/model.php");
         $template = str_replace("ModelName", $name."Model", $template);
+        $template = str_replace("\extraDirectories", "\\".str_replace("/","\\",$directories), $template);
         if (!file_exists(App::$root . "/app/Models/".$directories)) {
             mkdir(App::$root . "/app/Models/". $directories, 0744);
         }
