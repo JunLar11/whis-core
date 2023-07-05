@@ -32,7 +32,11 @@ class MakeMiddleware extends Command
 
         $template = file_get_contents(resourcesDirectory() . "/resources/templates/middleware.php");
         $template = str_replace("MiddlewareName", $name."Middleware", $template);
-        $template = str_replace("\\extraDirectories", "\\".str_replace("/","\\",$directories), $template);
+        if($directories != ""){
+            $template = str_replace("\\extraDirectories","\\".str_replace("/","\\",$directories), $template);
+        }else{
+            $template = str_replace("\\extraDirectories", "", $template);
+        }
         if (!file_exists(App::$root . "/app/Middlewares/".$directories)) {
             mkdir(App::$root . "/app/Middlewares/".$directories, 0744);
         }
