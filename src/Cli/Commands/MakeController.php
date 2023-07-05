@@ -30,7 +30,7 @@ class MakeController extends Command {
         }
         $template = file_get_contents(resourcesDirectory() . "/resources/templates/controller.php");
         $template = str_replace("ControllerName", $name."Controller", $template);
-        $template = str_replace("\extraDirectories", "\\".str_replace("/","\\",$directories), $template);
+        $template = str_replace("\\extraDirectories", "\\".str_replace("/","\\",$directories), $template);
         if (!file_exists(App::$root . "/app/Controllers/".$directories)) {
             mkdir(App::$root . "/app/Controllers/".$directories, 0744);
         }
