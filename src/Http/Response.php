@@ -128,6 +128,7 @@ class Response
      */
     public function prepare()
     {
+        $this->removeHeader("Pragma");
         if (is_null($this->content)) {
             $this->removeHeader('Content-Type');
             $this->removeHeader('Content-Length');
@@ -187,6 +188,8 @@ class Response
                     ->setStatus(200)
                     ->setHeader('Content-Type', 'text/html; charset=utf-8')
                     ->setContentType('text/html')
+                    ->setHeader("Keep-Alive","timeout=5, max=100")
+                    ->setHeader("Cache-Control", "private, max-age=86400, stale-while-revalidate=604800")
                     ->setContent($content);
     }
 
