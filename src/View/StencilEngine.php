@@ -3,6 +3,7 @@
 namespace Whis\View;
 
 use Whis\App;
+use Whis\Exceptions\HttpNotFoundException;
 
 class StencilEngine implements ViewEngine
 {
@@ -83,6 +84,17 @@ class StencilEngine implements ViewEngine
         }
         $compiled_file = $this->compiledPath.$extra."/{$file}.php";
         $this->layoutDirectoryPath();
+        
+        if (file_exists($compiled_file) && !str_contains(strtolower(config("app.env")),"dev")) {
+            return;
+        }elseif (!file_exists($compiled_file) && !str_contains(strtolower(config("app.env")),"dev")) {
+            throw new HttpNotFoundException();
+        }
+        if(!file_exists("{$this->viewsPath}/{$file}.html")){
+            header("HTTP/1.0 404 Not Found");
+            echo "404 Not Found";
+            exit;
+        }
         $htmlFileTime= filemtime("{$this->viewsPath}/{$file}.html");
         if (!file_exists($compiled_file) || filemtime($compiled_file) < $htmlFileTime || filemtime($compiled_file) < filemtime($this->layoutPath."/".($layout??$this->defaultLayout).".html")) {
             $code = self::includeFiles("{$this->viewsPath}/{$file}.html",$layout);
