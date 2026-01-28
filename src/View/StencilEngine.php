@@ -122,7 +122,7 @@ class StencilEngine implements ViewEngine
         return str_replace($this->urlAnnotation, config("app.url"), $code);
         // Fornece: Hll Wrld f PHP;
     }
-    protected function includeFiles($file,bool|string $layout=null)
+    protected function includeFiles($file,bool|string|null $layout=null)
     {
         $code = file_get_contents($file);
         if(is_null($layout) || is_string($layout) && !is_bool($layout)){

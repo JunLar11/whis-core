@@ -1,4 +1,7 @@
 /vendor/
 composer.lock
 .php-cs-fixer.cache
+future-updates.md
 /.VSCodeCounter
+.gitignore
+.gitattributes
