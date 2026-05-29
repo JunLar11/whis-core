@@ -1,32 +1,31 @@
 <?php
-
 namespace Whis\Http;
 
 use Whis\View\ViewEngine;
 
 class Response
 {
-    
+
     /**
      * response HTTP status code
      *
      * @var integer
      */
-    protected int $status=200;
+    protected int $status = 200;
 
     /**
      * response HTTP headers
      *
      * @var array<string,string>
      */
-    protected array $headers=[];
+    protected array $headers = [];
 
     /**
      * response content
      *
      * @var string
      */
-    protected ?string $content=null;
+    protected ?string $content = null;
 
     //Getter and Setter for status
 
@@ -57,7 +56,7 @@ class Response
      *
      * @return self
      */
-    public function headers(?string $key = null): array|string|null
+    public function headers(?string $key = null): array | string | null
     {
         if (is_null($key)) {
             return $this->headers;
@@ -145,12 +144,16 @@ class Response
      */
     public static function json(array $data): self
     {
-        array_walk_recursive($data, function(&$item){
-            $item = mb_convert_encoding($item, "UTF-8", mb_detect_encoding($item)); 
+        array_walk_recursive($data, function (&$item) {
+            if (is_string($item)) {
+                $encoding = mb_detect_encoding($item, mb_detect_order(), true) ?: 'UTF-8';
+                $item     = mb_convert_encoding($item, 'UTF-8', $encoding);
+            }
         });
+
         return (new self())
-            ->setContentType('application/json')
-            ->setContent(json_encode($data,JSON_UNESCAPED_UNICODE));
+            ->setContentType('application/json; charset=UTF-8')
+            ->setContent(json_encode($data, JSON_UNESCAPED_UNICODE));
     }
 
     /**
@@ -161,12 +164,13 @@ class Response
      */
     public static function text(string $text): self
     {
-        $text=mb_convert_encoding($text, "UTF-8", mb_detect_encoding($text));
+        $encoding = mb_detect_encoding($text, mb_detect_order(), true) ?: 'UTF-8';
+        $text     = mb_convert_encoding($text, 'UTF-8', $encoding);
+
         return (new self())
             ->setContentType('text/plain; charset=UTF-8')
             ->setContent($text);
     }
-
     /**
      * Redirect to another URL or URI
      *
@@ -180,20 +184,20 @@ class Response
             ->setHeader('Location', $uri);
     }
 
-    public static function view(string $view, array $parameters=[], string $layout=null): self
+    public static function view(string $view, array $parameters = [], string $layout = null): self
     {
         $content = app(ViewEngine::class)->render($view, $parameters, $layout);
 
         return (new self())
-                    ->setStatus(200)
-                    ->setHeader('Content-Type', 'text/html; charset=utf-8')
-                    ->setContentType('text/html')
-                    ->setHeader("Keep-Alive","timeout=5, max=100")
-                    ->setHeader("Cache-Control", "private, max-age=86400, stale-while-revalidate=604800")
-                    ->setContent($content);
+            ->setStatus(200)
+            ->setHeader('Content-Type', 'text/html; charset=utf-8')
+            ->setContentType('text/html')
+            ->setHeader("Keep-Alive", "timeout=5, max=100")
+            ->setHeader("Cache-Control", "private, max-age=86400, stale-while-revalidate=604800")
+            ->setContent($content);
     }
 
-    public function withErrors(array $errors, int $status=400): self
+    public function withErrors(array $errors, int $status = 400): self
     {
         $this->setStatus($status);
         session()->flash('_errors', $errors);

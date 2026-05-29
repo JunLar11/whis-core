@@ -1,7 +1,9 @@
 <?php
-
 namespace Whis;
 
+use Dotenv\Dotenv;
+use ReflectionClass;
+use Throwable;
 use Whis\Config\Config;
 use Whis\Database\Drivers\DatabaseDriver;
 use Whis\Database\Model;
@@ -15,9 +17,6 @@ use Whis\Session\Session;
 use Whis\Session\SessionStorage;
 use Whis\Validation\Exceptions\ValidationException;
 use Whis\View\ViewEngine;
-use Dotenv\Dotenv;
-use ReflectionClass;
-use Throwable;
 
 class App
 {
@@ -54,7 +53,7 @@ class App
      */
     public static function bootstrap(string $root)
     {
-        self::$root=$root;
+        self::$root = $root;
 
         $app = singleton(self::class);
         return $app
@@ -93,24 +92,27 @@ class App
         exit();
     }
 
-    protected function runServiceProviders(string $type):self{
-        foreach (config('providers.'.$type) as $provider) {
+    protected function runServiceProviders(string $type): self
+    {
+        foreach (config('providers.' . $type) as $provider) {
             $provider = new $provider();
             $provider->registerServices();
         }
         return $this;
     }
 
-    protected function setHttpHandlers():self{
-        $this->router = singleton(Router::class);
-        $this->server = app(Server::class);
-        $this->request = singleton(Request::class,  fn()=>$this->server->getRequest());
-        $this->session = singleton(Session::class, fn () => new Session(app(SessionStorage::class)));
+    protected function setHttpHandlers(): self
+    {
+        $this->router  = singleton(Router::class);
+        $this->server  = app(Server::class);
+        $this->request = singleton(Request::class, fn() => $this->server->getRequest());
+        $this->session = singleton(Session::class, fn() => new Session(app(SessionStorage::class)));
 
         return $this;
     }
 
-    protected function setupDatabaseConnection():self{
+    protected function setupDatabaseConnection(): self
+    {
         $this->database = app(DatabaseDriver::class);
         $this->database->connect(
             config("database.connection"),
@@ -127,9 +129,18 @@ class App
     protected function loadConfig()
     {
         Dotenv::createImmutable(self::$root)->load();
-        Config::load(self::$root."/config");
+        Config::load(self::$root . "/config");
 
         return $this;
+    }
+
+    protected function expectsJson(Request $request): bool
+    {
+        $accept        = strtolower((string) $request->headers('accept'));
+        $requestedWith = strtolower((string) $request->headers('x-requested-with'));
+
+        return str_contains($accept, 'application/json')
+            || $requestedWith === 'xmlhttprequest';
     }
 
     /**
@@ -141,45 +152,66 @@ class App
             $this->terminate($this->router->resolve($this->request));
         } catch (HttpNotFoundException $e) {
             //throw new \Exception('No route matched.', 404);
-            $this->abort(Response::view('errors/error',["code"=>404,"text"=>"Page not found"],"error")->setStatus(404));
+            $this->abort(Response::view('errors/error', ["code" => 404, "text" => "Page not found"], "error")->setStatus(404));
         } catch (ValidationException $e) {
             //throw new \Exception('No route matched.', 422);
             $this->abort(back()->withErrors($e->errors(), 422));
         } catch (Throwable $e) {
             $error = new ReflectionClass($e);
-            $show=config('app.error');
-            if($show=="false"){
-                if(!is_dir(self::$root . '/logs')){
-                    mkdir(self::$root . '/logs');
-                }
-                $log = self::$root . '/logs/' . date('Y-m-d') . '.txt';
-                $message="\t".date('Y-m-d H:i:s').": ".$error->getShortName() . " by ". $_SERVER['REMOTE_ADDR'];
-                $message .= "\nUncaught exception: '" . get_class($e) . "'";
-                $message .= " with message '" . $e->getMessage() . "'";
-                $message .= "\nStack trace: " . $e->getTraceAsString();
-                $message .= "\nThrown in '" . $e->getFile() . "' on line " . $e->getLine()."\n\n\n";
-                file_put_contents($log, $message, FILE_APPEND);
-                //error_log($message);
-                $response = view('errors/error',["code"=>500, "text"=>"An error has ocurred"],"error");
-                
-            }else{
-                $response = json([
-                    "error" => $error->getShortName(),
-                    "message" => $e->getMessage(),
-                    "file" => $e->getFile(),
-                    "line" => $e->getLine(),
-                    "trace" => $e->getTraceAsString()
-                ]);
+            $show  = config('app.error');
+
+            if (! is_dir(self::$root . '/logs')) {
+                mkdir(self::$root . '/logs', 0775, true);
             }
-            
-            
 
-            //throw new \Exception('No route matched.', 500);
-            $this->abort($response->setStatus(500));
+            $log = self::$root . '/logs/' . date('Y-m-d') . '.txt';
+
+            $message  = "\t" . date('Y-m-d H:i:s') . ": " . $error->getShortName() . " by " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+            $message .= "\nUncaught exception: '" . get_class($e) . "'";
+            $message .= " with message '" . $e->getMessage() . "'";
+            $message .= "\nStack trace: " . $e->getTraceAsString();
+            $message .= "\nThrown in '" . $e->getFile() . "' on line " . $e->getLine() . "\n\n\n";
+
+            file_put_contents($log, $message, FILE_APPEND);
+
+            if ($this->expectsJson($this->request)) {
+                $response = Response::json([
+                    'ok'      => false,
+                    'error'   => $error->getShortName(),
+                    'message' => $show === 'false'
+                        ? 'Error interno del servidor.'
+                        : $e->getMessage(),
+                    'file'    => $show === 'false' ? null : $e->getFile(),
+                    'line'    => $show === 'false' ? null : $e->getLine(),
+                ])->setStatus(500);
+
+                $this->abort($response);
+            }
+
+            if ($show === 'false') {
+                $response = Response::view(
+                    'errors/error',
+                    [
+                        'code' => 500,
+                        'text' => 'An error has occurred',
+                    ],
+                    'error'
+                )->setStatus(500);
+
+                $this->abort($response);
+            }
+
+            $response = Response::text(
+                "Error: " . $error->getShortName() . PHP_EOL .
+                "Message: " . $e->getMessage() . PHP_EOL .
+                "File: " . $e->getFile() . PHP_EOL .
+                "Line: " . $e->getLine()
+            )->setStatus(500);
+
+            $this->abort($response);
         }
-        
-    }
 
+    }
 
     /**
      * @param Response $response

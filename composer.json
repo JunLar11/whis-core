@@ -13,7 +13,8 @@
           "src/Helpers/string.php",
           "src/Helpers/session.php",
           "src/Helpers/auth.php",
-          "src/Helpers/files.php"
+          "src/Helpers/files.php",
+          "src/Helpers/csrf.php"
         ]
     },
     "scripts": {
