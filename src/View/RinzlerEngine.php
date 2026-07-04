@@ -22,7 +22,7 @@ class RinzlerEngine implements ViewEngine
      * @param array $data
      * @return string
      */
-    public function render(string $view, array $parameters =[], string $layout=null): string
+    public function render(string $view, array $parameters =[], ?string $layout=null): string
     {
         $layoutContent=$this->renderLayout($layout??$this->defaultLayout);
 
