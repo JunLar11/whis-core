@@ -81,7 +81,7 @@ abstract class Model
     public function save(): static
     {
         if ($this->insertTimestamps) {
-            $this->attributes["created_at"] = date("Y-m-d H:m:s");
+            $this->attributes["created_at"] = date("Y-m-d H:i:s");
         }
         $databaseColumns = implode(",", array_keys($this->attributes));
         $bind = implode(",", array_fill(0, count($this->attributes), "?"));
@@ -265,7 +265,7 @@ abstract class Model
     public function update(mixed $column, mixed $value, mixed $orderBy = null, bool $desc = false): ?static
     {
         if ($this->insertTimestamps) {
-            $this->attributes["updated_at"] = date("Y-m-d H:m:s");
+            $this->attributes["updated_at"] = date("Y-m-d H:i:s");
         }
 
         $databaseColumns = array_keys($this->attributes);

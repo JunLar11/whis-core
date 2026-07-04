@@ -1,7 +1,6 @@
 <?php
 namespace Whis\Server;
 
-use GuzzleHttp\Psr7\Header;
 use Whis\Http\HttpMethod;
 use Whis\Http\Request;
 use Whis\Http\Response;
@@ -9,93 +8,112 @@ use Whis\Storage\File;
 
 class PhpNativeServer implements Server
 {
-
     /**
-     * Get files from `$_FILES` global.
+     * Get files from $_FILES global.
      *
-     * @return array<string, \Chomsky\Storage\File>
+     * Esta función NO valida.
+     * Esta función NO redirige.
+     * Esta función NO manda headers.
+     *
+     * Solo convierte $_FILES en objetos Whis\Storage\File.
      */
     protected function uploadedFiles(): array
     {
-        $files             = [];
-        $file_number       = 0;
-        $total_size        = 0;
-        $maxFileUpload     = ini_get('max_file_uploads');
-        $uploadMaxFilesize = return_bytes(ini_get('upload_max_filesize'));
-        $postMaxSize       = return_bytes(ini_get('post_max_size'));
+        $files = [];
+
         foreach ($_FILES as $key => $file) {
-            if (! empty($file["tmp_name"])) {
-                if (is_array($file["tmp_name"])) {
-                    $files[$key]  = [];
-                    $file_number += count($file["tmp_name"]);
-                    if ($file_number > ($maxFileUpload - 1)) {
-                        header("HTTP/1.1 400 Bad Request");
-                        header("/");
-                    }
-                    foreach ($file["tmp_name"] as $index => $value) {
-                        if (empty($file["tmp_name"][$index]) || $value == "") {
-                            continue;
-                        }
-                        if ($uploadMaxFilesize < $file["size"][$index]) {
-                            //echo return_bytes(ini_get('post_max_size'));
-                            header("HTTP/1.1 400 Bad Request");
-                            header("/");
-                        }
-                        $total_size += $file["size"][$index];
-                        if ($postMaxSize < $total_size) {
-                            header("HTTP/1.1 400 Bad Request");
-                            header("/");
-                        }
+            if (is_array($file['name'] ?? null)) {
+                $files[$key] = [];
 
-                        $files[$key][$index] = new File(
-                            file_get_contents($file["tmp_name"][$index]),
-                            $file["type"][$index],
-                            $file["name"][$index],
-                            $file["size"][$index],
-                        );
+                foreach ($file['name'] as $index => $name) {
+                    $uploadedFile = $this->makeUploadedFile($file, $index);
 
+                    if ($uploadedFile !== null) {
+                        $files[$key][] = $uploadedFile;
                     }
-                    continue;
                 }
-                if ($uploadMaxFilesize < $file["size"]) {
-                    //echo return_bytes(ini_get('post_max_size'));
-                    header("HTTP/1.1 400 Bad Request");
-                    header("/");
+
+                if (empty($files[$key])) {
+                    unset($files[$key]);
                 }
-                $file_number++;
-                if ($file_number > ($maxFileUpload - 1)) {
-                    header("HTTP/1.1 400 Bad Request");
-                    header("/");
-                }
-                $total_size += $file["size"];
-                if ($postMaxSize < $total_size) {
-                    header("HTTP/1.1 400 Bad Request");
-                    header("/");
-                }
-                $files[$key] = new File(
-                    file_get_contents($file["tmp_name"]),
-                    $file["type"],
-                    $file["name"],
-                    $file["size"],
-                );
+
+                continue;
+            }
+
+            $uploadedFile = $this->makeUploadedFile($file);
+
+            if ($uploadedFile !== null) {
+                $files[$key] = $uploadedFile;
             }
         }
 
         return $files;
     }
 
+    private function makeUploadedFile(array $file, ?int $index = null): ?File
+    {
+        $isMultiple = $index !== null;
+
+        $name = $isMultiple
+            ? (string) ($file['name'][$index] ?? '')
+            : (string) ($file['name'] ?? '');
+
+        $type = $isMultiple
+            ? (string) ($file['type'][$index] ?? '')
+            : (string) ($file['type'] ?? '');
+
+        $tmpName = $isMultiple
+            ? (string) ($file['tmp_name'][$index] ?? '')
+            : (string) ($file['tmp_name'] ?? '');
+
+        $size = $isMultiple
+            ? (int) ($file['size'][$index] ?? 0)
+            : (int) ($file['size'] ?? 0);
+
+        $error = $isMultiple
+            ? (int) ($file['error'][$index] ?? UPLOAD_ERR_NO_FILE)
+            : (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+        /*
+         * Si no se seleccionó archivo, no creamos File.
+         * Esto permite que filesquantity:,2 acepte 0 archivos.
+         */
+        if ($error === UPLOAD_ERR_NO_FILE || $name === '') {
+            return null;
+        }
+
+        /*
+         * Si hubo error de subida, sí creamos File,
+         * pero con el error guardado.
+         *
+         * Así el Validator puede decir:
+         * - archivo demasiado grande
+         * - error parcial
+         * - etc.
+         */
+        $content = '';
+
+        if ($error === UPLOAD_ERR_OK && $tmpName !== '' && is_file($tmpName)) {
+            $content = file_get_contents($tmpName) ?: '';
+        }
+
+        return new File(
+            $content,
+            $type,
+            $name,
+            $size,
+            $error
+        );
+    }
+
     protected function requestData(): array
     {
-        $headers = getallheaders();
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
 
         $contentType =
         $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? $headers['Content-Type'] ?? $headers['content-type'] ?? '';
 
         $isJson = stripos($contentType, 'application/json') !== false;
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && ! $isJson) {
-            return $_POST;
-        }
 
         if ($isJson) {
             $raw  = file_get_contents('php://input');
@@ -104,86 +122,55 @@ class PhpNativeServer implements Server
             return is_array($data) ? $data : [];
         }
 
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            return is_array($_POST) ? $_POST : [];
+        }
+
         parse_str(file_get_contents('php://input'), $data);
 
         return is_array($data) ? $data : [];
     }
 
-    /**
-     * Get the request sent by the client.
-     *
-     * @return Request
-     */
     public function getRequest(): Request
     {
-        //var_dump($_SERVER);
-        $uri = "/" . $this->removeQueryStringVariables(parse_url($_SERVER['QUERY_STRING'], PHP_URL_PATH));
-        //$query_string=parse_url($_SERVER['QUERY_STRING'], PHP_URL_PATH);
-        return (new Request())
-            ->setUri($uri)
-            ->setMethod(HttpMethod::from($_SERVER['REQUEST_METHOD']))
-            ->setHeaders(getallheaders())
-            ->setData($this->requestData())
-            ->setQuery($this->getQueryStringVariables($uri))
-            ->setFiles($this->uploadedFiles());
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
 
+        return (new Request())
+            ->setUri($this->currentUri())
+            ->setMethod(HttpMethod::from($_SERVER['REQUEST_METHOD']))
+            ->setHeaders($headers)
+            ->setData($this->requestData())
+            ->setQuery($_GET)
+            ->setFiles($this->uploadedFiles());
     }
 
-    /**
-     * Send a response to the client
-     *
-     * @param Response $response
-     * @return void
-     */
-    public function sendResponse(Response $response)
+    public function sendResponse(Response $response): void
     {
-        //PHP  envia Content-Type: text/html; charset=UTF-8 por defecto, pero si no hay contenido, no debería enviarlo
-        //Content-Type no puede ser removido si no hay un valor previo
-        header("Content-Type: None");
-        header_remove("Content-Type");
-
+        /*
+         * No fuerces Content-Type: None.
+         * Solo deja que Response prepare sus headers.
+         */
         $response->prepare();
+
         http_response_code($response->status());
+
         foreach ($response->headers() as $header => $value) {
             header("$header: $value");
         }
+
         print($response->content());
     }
 
-    protected function getQueryStringVariables(string $url): array
+    private function currentUri(): string
     {
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 
-        if (strpos(parse_url($_SERVER['QUERY_STRING'], PHP_URL_PATH), '&') == false) {
-            return [];
-        }
-        //var_dump($url);
-        $query_string = str_replace($url . "&", "", "/" . parse_url($_SERVER['QUERY_STRING'], PHP_URL_PATH));
-        //var_dump($query_string);
-        $query_array = [];
-        if (strpos($query_string, '&') !== false) {
-            $query_string = explode('&', $query_string);
-            foreach ($query_string as $value) {
-                $query_element                  = explode('=', $value);
-                $query_array[$query_element[0]] = $query_element[1];
-            }
-            return $query_array;
-        }
-        $query_string                  = explode('=', $query_string);
-        $query_array[$query_string[0]] = $query_string[1];
-        return $query_array;
+        $path = parse_url($requestUri, PHP_URL_PATH);
 
-    }
-
-    protected function removeQueryStringVariables(string $url)
-    {
-        if ($url != '') {
-            $parts = explode('&', $url, 2);
-            if (strpos($parts[0], '=') === false) {
-                $url = $parts[0];
-            } else {
-                $url = '';
-            }
+        if (! is_string($path) || $path === '') {
+            return '/';
         }
-        return $url;
+
+        return '/' . trim($path, '/');
     }
 }

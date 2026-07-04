@@ -1,5 +1,4 @@
 <?php
-
 namespace Whis\Session;
 
 use RuntimeException;
@@ -8,16 +7,27 @@ class PhpNativeSessionStorage implements SessionStorage
 {
     public function start(): void
     {
-        if (!session_start()) {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            return;
+        }
+
+        if (headers_sent($file, $line)) {
+            throw new RuntimeException(
+                "Cannot start session: headers already sent in {$file} on line {$line}."
+            );
+        }
+
+        if (! session_start()) {
             throw new RuntimeException('Failed to start session.');
         }
     }
 
     public function save(): void
     {
-        session_write_close();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
     }
-
     public function id(): string
     {
         return session_id();
@@ -25,7 +35,7 @@ class PhpNativeSessionStorage implements SessionStorage
 
     public function get(string $key, mixed $default = null): mixed
     {
-        return $_SESSION[$key]?? $default;
+        return $_SESSION[$key] ?? $default;
     }
 
     public function set(string $key, mixed $value): void
@@ -35,7 +45,7 @@ class PhpNativeSessionStorage implements SessionStorage
 
     public function has(string $key): bool
     {
-        return isset($_SESSION[$key])&&!empty($_SESSION[$key]);
+        return isset($_SESSION[$key]) && ! empty($_SESSION[$key]);
     }
 
     public function remove(string $key): void
@@ -45,6 +55,8 @@ class PhpNativeSessionStorage implements SessionStorage
 
     public function destroy(): void
     {
-        session_destroy();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
     }
 }

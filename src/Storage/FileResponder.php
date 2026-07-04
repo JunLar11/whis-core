@@ -11,39 +11,36 @@ class FileResponder
 
     public function __construct(string $storageDirectory)
     {
-        $this->storageDirectory = rtrim($storageDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-        $this->assetsDirectory = rtrim(App::$root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . "resources" . DIRECTORY_SEPARATOR . "assets" . DIRECTORY_SEPARATOR;
+        $this->storageDirectory =
+            rtrim(str_replace('\\', '/', $storageDirectory), '/')
+            . '/';
+
+        $this->assetsDirectory =
+            rtrim(str_replace('\\', '/', App::$root), '/')
+            . '/resources/assets/';
     }
 
-    public function getFile(string $filename = null, bool $asset = false, string $alternativeDirectory = null)
+    public function getFile(?string $filename = null, bool $asset = false, ?string $alternativeDirectory = null): void
     {
-        if (!is_null($alternativeDirectory)) {
-            $directories = explode("/", $filename);
-            $filename = array_pop($directories);
-        }
-
         if ($asset) {
             $this->assets($filename, $alternativeDirectory);
-        } else {
-            $this->uploaded($filename, $alternativeDirectory);
+            return;
         }
+
+        $this->uploaded($filename, $alternativeDirectory);
     }
 
-    public function downloadFile(string $filename = null, bool $asset = false, string $alternativeDirectory = null)
+    public function downloadFile(?string $filename = null, bool $asset = false, ?string $alternativeDirectory = null): void
     {
-        if (!is_null($alternativeDirectory)) {
-            $directories = explode("/", $filename);
-            $filename = array_pop($directories);
-        }
-
         if ($asset) {
             $this->download($filename, $alternativeDirectory);
-        } else {
-            $this->downloadUploaded($filename, $alternativeDirectory);
+            return;
         }
+
+        $this->downloadUploaded($filename, $alternativeDirectory);
     }
 
-    public function assets(string $filename, string $alternativeDirectory = null)
+    public function assets(?string $filename = null, ?string $alternativeDirectory = null): void
     {
         $filePath = $this->buildPath($filename, true, $alternativeDirectory);
 
@@ -54,7 +51,7 @@ class FileResponder
         $this->serveFile($filePath, true);
     }
 
-    public function uploaded(string $filename, string $alternativeDirectory = null)
+    public function uploaded(?string $filename = null, ?string $alternativeDirectory = null): void
     {
         $filePath = $this->buildPath($filename, false, $alternativeDirectory);
 
@@ -65,7 +62,7 @@ class FileResponder
         $this->serveFile($filePath, false);
     }
 
-    public function download(string $filename, string $alternativeDirectory = null)
+    public function download(?string $filename = null, ?string $alternativeDirectory = null): void
     {
         $filePath = $this->buildPath($filename, true, $alternativeDirectory);
 
@@ -76,7 +73,7 @@ class FileResponder
         $this->forceDownload($filePath);
     }
 
-    public function downloadUploaded(string $filename, string $alternativeDirectory = null)
+    public function downloadUploaded(?string $filename = null, ?string $alternativeDirectory = null): void
     {
         $filePath = $this->buildPath($filename, false, $alternativeDirectory);
 
@@ -93,22 +90,59 @@ class FileResponder
             return null;
         }
 
-        $baseDirectory = $asset
-            ? (is_null($alternativeDirectory) ? $this->assetsDirectory : rtrim(App::$root . '/' . trim($alternativeDirectory, '/\\'), '/\\'))
-            : (is_null($alternativeDirectory) ? $this->storageDirectory : rtrim(App::$root . '/' . trim($alternativeDirectory, '/\\'), '/\\'));
+        $filename = trim(str_replace('\\', '/', (string) $filename), '/');
 
-        return rtrim($baseDirectory, '/\\') . DIRECTORY_SEPARATOR . ltrim($filename, '/\\');
+        $baseDirectory = $asset
+            ? $this->assetsDirectory
+            : $this->storageDirectory;
+
+        if ($alternativeDirectory !== null) {
+            $baseDirectory =
+                rtrim(str_replace('\\', '/', App::$root), '/')
+                . '/'
+                . trim(str_replace('\\', '/', $alternativeDirectory), '/');
+        }
+
+        $baseDirectory = realpath($baseDirectory);
+
+        if ($baseDirectory === false) {
+            return null;
+        }
+
+        $candidatePath =
+            rtrim(str_replace('\\', '/', $baseDirectory), '/')
+            . '/'
+            . $filename;
+
+        $filePath = realpath($candidatePath);
+
+        if ($filePath === false) {
+            return null;
+        }
+
+        $baseDirectory = rtrim(str_replace('\\', '/', $baseDirectory), '/');
+        $filePath = str_replace('\\', '/', $filePath);
+
+        if ($filePath !== $baseDirectory && !str_starts_with($filePath, $baseDirectory . '/')) {
+            return null;
+        }
+
+        return $filePath;
     }
 
     private function isSafeFilename(?string $filename): bool
     {
-        if (is_null($filename)) {
+        if ($filename === null) {
             return false;
         }
 
-        $filename = trim($filename);
+        $filename = trim(str_replace('\\', '/', $filename), '/');
 
-        if ($filename === '' || $filename === '/' || $filename === '\\') {
+        if ($filename === '') {
+            return false;
+        }
+
+        if (str_contains($filename, "\0")) {
             return false;
         }
 
@@ -121,90 +155,106 @@ class FileResponder
 
     private function isValidFile(?string $filePath): bool
     {
-        if (is_null($filePath)) {
-            return false;
-        }
-
-        if (!file_exists($filePath)) {
-            return false;
-        }
-
-        if (!is_file($filePath)) {
-            return false;
-        }
-
-        if (!is_readable($filePath)) {
-            return false;
-        }
-
-        return true;
+        return $filePath !== null
+            && file_exists($filePath)
+            && is_file($filePath)
+            && is_readable($filePath);
     }
 
     private function serveFile(string $filePath, bool $cache = true): void
     {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mimeType = $this->getContentType($filePath, $finfo);
-        finfo_close($finfo);
-
-        header('Content-Type: ' . $mimeType);
-        header("Keep-Alive: timeout=5, max=100");
-        header_remove("Pragma");
-
-        if ($cache) {
-            header("Cache-Control: private, max-age=86400, stale-while-revalidate=604800");
-        }
-
+        $mimeType = $this->getContentType($filePath);
         $fileSize = filesize($filePath);
 
-        if (str_contains($mimeType, "video")) {
-            $this->sendVideo($filePath, $fileSize);
+        if ($fileSize === false) {
+            $this->notFound();
         }
 
+        $this->cleanOutputBuffer();
+
+        header('Content-Type: ' . $mimeType);
         header('Content-Length: ' . $fileSize);
+        header('Keep-Alive: timeout=5, max=100');
+        header_remove('Pragma');
+
+        if ($cache) {
+            header('Cache-Control: public, max-age=86400, stale-while-revalidate=604800');
+        } else {
+            header('Cache-Control: private, no-store, max-age=0');
+        }
+
+        if (str_starts_with($mimeType, 'video/')) {
+            $this->sendVideo($filePath, $fileSize, $mimeType);
+            return;
+        }
+
         readfile($filePath);
         exit;
     }
 
     private function forceDownload(string $filePath): void
     {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mimeType = $this->getContentType($filePath, $finfo);
-        finfo_close($finfo);
+        $mimeType = $this->getContentType($filePath);
+        $fileSize = filesize($filePath);
+
+        if ($fileSize === false) {
+            $this->notFound();
+        }
+
+        $this->cleanOutputBuffer();
 
         header('Content-Type: ' . $mimeType);
-        header('Content-Disposition: attachment; filename="' . basename($filePath) . '"');
-        header("Keep-Alive: timeout=5, max=100");
-        header('Content-Length: ' . filesize($filePath));
+        header('Content-Disposition: attachment; filename="' . addslashes(basename($filePath)) . '"');
+        header('Content-Length: ' . $fileSize);
+        header('Keep-Alive: timeout=5, max=100');
+        header('Cache-Control: private, no-store, max-age=0');
 
         readfile($filePath);
         exit;
     }
 
-    private function notFound(): void
+    private function getContentType(string $filePath): string
     {
-        http_response_code(404);
-        exit('404 Not Found');
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'css'   => 'text/css; charset=UTF-8',
+            'js'    => 'text/javascript; charset=UTF-8',
+            'mjs'   => 'text/javascript; charset=UTF-8',
+            'html'  => 'text/html; charset=UTF-8',
+            'xml'   => 'application/xml; charset=UTF-8',
+            'json'  => 'application/json; charset=UTF-8',
+            'txt'   => 'text/plain; charset=UTF-8',
+            'svg'   => 'image/svg+xml',
+            'webp'  => 'image/webp',
+            'avif'  => 'image/avif',
+            'png'   => 'image/png',
+            'jpg',
+            'jpeg'  => 'image/jpeg',
+            'gif'   => 'image/gif',
+            'ico'   => 'image/x-icon',
+            'woff'  => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf'   => 'font/ttf',
+            'otf'   => 'font/otf',
+            'eot'   => 'application/vnd.ms-fontobject',
+            'pdf'   => 'application/pdf',
+            'mp4'   => 'video/mp4',
+            'webm'  => 'video/webm',
+            'ogg'   => 'video/ogg',
+            default => $this->detectMimeType($filePath),
+        };
     }
 
-    private function getContentType($filePath, $finfo)
+    private function detectMimeType(string $filePath): string
     {
-        switch (strtolower(pathinfo($filePath, PATHINFO_EXTENSION))) {
-            case "css":
-                return "text/css";
-            case "js":
-                return "text/javascript";
-            case "html":
-                return "text/html; charset=UTF-8";
-            case "xml":
-                return "application/xml; charset=UTF-8";
-            case "txt":
-                return "text/plain; charset=UTF-8";
-            default:
-                return finfo_file($finfo, $filePath);
-        }
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($filePath);
+
+        return $mimeType ?: 'application/octet-stream';
     }
 
-    private function sendVideo(string $filePath, int $fileSize): void
+    private function sendVideo(string $filePath, int $fileSize, string $mimeType): void
     {
         $fp = @fopen($filePath, 'rb');
 
@@ -212,65 +262,96 @@ class FileResponder
             $this->notFound();
         }
 
-        $size = $fileSize;
-        $length = $size;
         $start = 0;
-        $end = $size - 1;
+        $end = $fileSize - 1;
+        $length = $fileSize;
 
-        header("Accept-Ranges: 0-$length");
+        header('Content-Type: ' . $mimeType);
+        header('Accept-Ranges: bytes');
 
         if (isset($_SERVER['HTTP_RANGE'])) {
-            $c_start = $start;
-            $c_end = $end;
+            $rangeHeader = trim($_SERVER['HTTP_RANGE']);
 
-            list(, $range) = explode('=', $_SERVER['HTTP_RANGE'], 2);
-
-            if (strpos($range, ',') !== false) {
-                header('HTTP/1.1 416 Requested Range Not Satisfiable');
-                header("Content-Range: bytes $start-$end/$size");
-                exit;
+            if (!preg_match('/^bytes=(\d*)-(\d*)$/', $rangeHeader, $matches)) {
+                $this->rangeNotSatisfiable($fileSize);
             }
 
-            if ($range == '-') {
-                $c_start = $size - substr($range, 1);
+            $rangeStart = $matches[1];
+            $rangeEnd = $matches[2];
+
+            if ($rangeStart === '' && $rangeEnd === '') {
+                $this->rangeNotSatisfiable($fileSize);
+            }
+
+            if ($rangeStart === '') {
+                $suffixLength = (int) $rangeEnd;
+
+                if ($suffixLength <= 0) {
+                    $this->rangeNotSatisfiable($fileSize);
+                }
+
+                $start = max(0, $fileSize - $suffixLength);
             } else {
-                $range = explode('-', $range);
-                $c_start = $range[0];
-                $c_end = (isset($range[1]) && is_numeric($range[1])) ? $range[1] : $size;
+                $start = (int) $rangeStart;
             }
 
-            $c_end = ($c_end > $end) ? $end : $c_end;
-
-            if ($c_start > $c_end || $c_start > $size - 1 || $c_end >= $size) {
-                header('HTTP/1.1 416 Requested Range Not Satisfiable');
-                header("Content-Range: bytes $start-$end/$size");
-                exit;
+            if ($rangeEnd !== '' && $rangeStart !== '') {
+                $end = min((int) $rangeEnd, $fileSize - 1);
             }
 
-            $start = $c_start;
-            $end = $c_end;
+            if ($start > $end || $start >= $fileSize) {
+                $this->rangeNotSatisfiable($fileSize);
+            }
+
             $length = $end - $start + 1;
 
-            fseek($fp, $start);
-            header('HTTP/1.1 206 Partial Content');
+            http_response_code(206);
+            header("Content-Range: bytes {$start}-{$end}/{$fileSize}");
         }
 
-        header("Content-Range: bytes $start-$end/$size");
-        header("Content-Length: " . $length);
+        header('Content-Length: ' . $length);
+
+        fseek($fp, $start);
 
         $buffer = 1024 * 8;
+        $bytesLeft = $length;
 
-        while (!feof($fp) && ($p = ftell($fp)) <= $end) {
-            if ($p + $buffer > $end) {
-                $buffer = $end - $p + 1;
+        while (!feof($fp) && $bytesLeft > 0) {
+            $readLength = min($buffer, $bytesLeft);
+            $data = fread($fp, $readLength);
+
+            if ($data === false) {
+                break;
             }
 
-            set_time_limit(0);
-            echo fread($fp, $buffer);
+            echo $data;
             flush();
+
+            $bytesLeft -= strlen($data);
+            set_time_limit(0);
         }
 
         fclose($fp);
         exit;
+    }
+
+    private function rangeNotSatisfiable(int $fileSize): void
+    {
+        http_response_code(416);
+        header("Content-Range: bytes */{$fileSize}");
+        exit;
+    }
+
+    private function cleanOutputBuffer(): void
+    {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+    }
+
+    private function notFound(): void
+    {
+        http_response_code(404);
+        exit('404 Not Found');
     }
 }

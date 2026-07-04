@@ -1,186 +1,278 @@
 <?php
-
 namespace Whis\Routing;
 
-use Whis\Http\Middleware;
 use Closure;
+use Whis\Http\Middleware;
 
 class Route
 {
-    /**
-     * Route URI
-     *
-     * @var string
-     */
     protected string $uri;
 
-    /**
-     * Route action
-     *
-     * @var Closure|array
-     */
     protected Closure|array $action;
 
-    /**
-     * Route regex
-     *
-     * @var string
-     */
     protected string $regex;
 
     /**
-     * Route parameters
-     *
-     * @var array<string,string>
+     * @var array<int,string>
      */
-    protected array $parameters;
+    protected array $parameters = [];
 
     /**
-     * HTTP middlewares
-     * @var array<Middleware>
+     * @var array<int,Middleware>
      */
     protected array $middlewares = [];
 
-
-    public function __construct(string $uri, Closure|array $action)
+    public function __construct(string $uri, Closure | array $action)
     {
-        $this->uri = $uri;
+        $this->uri    = $this->normalizeUri($uri);
         $this->action = $action;
-        
 
-        // Convert the route to a regular expression: escape forward slashes
-        $this->regex = preg_replace('/\//', '\\/', $uri);;
-
-        // Convert variables e.g. {controller}
-        $this->regex = preg_replace('/\{([a-z]+)\}/', '(?P<\1>[a-z-]+)', $this->regex);
-
-        // Convert variables with custom regular expressions e.g. {id:\d+}
-        $this->regex = preg_replace('/\{([a-z]+):([^\}]+)\}/', '(?P<\1>\2)', $this->regex);
-
-        //Get the parameters from the route
-        preg_match_all('/\{([a-zA-Z]+)(:[^\}]+)?\}/', $uri, $parameters);
-
-        $this->parameters = $parameters[1];
+        $this->compileRegex();
+        $this->parseParameterNames();
     }
 
-    /**
-     * Get route URI
-     *
-     * @return string
-     */
-    public function uri()
+    protected function normalizeUri(string $uri): string
+    {
+        $uri = trim($uri);
+
+        if ($uri === '' || $uri === '/') {
+            return '';
+        }
+
+        return '/' . trim($uri, '/');
+    }
+
+    protected function compileRegex(): void
+    {
+        $regex = preg_replace('/\//', '\\/', $this->uri);
+
+        /*
+         * Parámetros con regex personalizada:
+         *
+         * /users/{id:\d+}
+         * /uploads/{filename:.*\.(?:png|jpg|jpeg)}
+         */
+        $regex = preg_replace(
+            '/\{([a-zA-Z_][a-zA-Z0-9_]*):([^\}]+)\}/',
+            '(?P<\1>\2)',
+            $regex
+        );
+
+        /*
+         * Parámetros normales:
+         *
+         * /users/{id}
+         */
+        $regex = preg_replace(
+            '/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/',
+            '(?P<\1>[a-zA-Z0-9_-]+)',
+            $regex
+        );
+
+        $this->regex = $regex;
+    }
+
+    protected function parseParameterNames(): void
+    {
+        preg_match_all(
+            '/\{([a-zA-Z_][a-zA-Z0-9_]*)(:[^\}]+)?\}/',
+            $this->uri,
+            $parameters
+        );
+
+        $this->parameters = $parameters[1] ?? [];
+    }
+
+    public function uri(): string
     {
         return $this->uri;
     }
 
-    /**
-     * Get route action
-     *
-     * @return Closure
-     */
-    public function action():Closure|array
+    public function action(): Closure | array
     {
         return $this->action;
     }
 
-    /**
-     * Get all HTTP middlewares for this route
-     * @return array<Middleware>
-    */
     public function middlewares(): array
     {
         return $this->middlewares;
     }
 
-    /**
-     * Check if this route has HTTP middlewares
-     * @return bool
-     */
     public function hasMiddlewares(): bool
     {
         return count($this->middlewares) > 0;
     }
 
-    /**
-     * Add middlewares to the route
-     * @param Middleware $middleware
-     * @return Route
-     */
-    public function setMiddlewares(array $middlewares): self
+    public function setMiddlewares(array | string $middlewares): self
     {
-        $this->middlewares = array_map(fn ($middleware) =>new $middleware(), $middlewares);
+        $this->middlewares = [];
+
+        return $this->addMiddlewares($middlewares);
+    }
+
+    public function addMiddlewares(array | string $middlewares): self
+    {
+        if (is_string($middlewares)) {
+            $middlewares = [$middlewares];
+        }
+
+        foreach ($middlewares as $middleware) {
+            if ($middleware instanceof Middleware) {
+                $this->middlewares[] = $middleware;
+                continue;
+            }
+
+            if (is_string($middleware) && class_exists($middleware)) {
+                $this->middlewares[] = new $middleware();
+            }
+        }
+
         return $this;
     }
 
-    /**
-     * Get route matches regex
-     *
-     * @return bool
-     */
-    public function matches(string $uri): bool
+    public function middleware(array | string $middlewares): self
     {
-        //var_dump($this->regex);
-        $regex="/^".$this->regex."\/?$/i";
-        return preg_match($regex, $uri);
+        return $this->addMiddlewares($middlewares);
     }
 
-    /**
-     * Get route parameters
-     *
-     * @return bool
-     */
+    public function matches(string $uri): bool
+    {
+        $uri = $this->normalizeUri($uri);
+
+        $regex = "/^" . $this->regex . "\/?$/i";
+
+        return preg_match($regex, $uri) === 1;
+    }
+
     public function hasParameters(): bool
     {
         return count($this->parameters) > 0;
     }
 
-    /**
-     * Parse route parameters
-     *
-     * @return array<string,string>
-     */
     public function parseParameters(string $uri): array
     {
-        $regex="/^".$this->regex."\/?$/i";
+        $uri = $this->normalizeUri($uri);
+
+        $regex = "/^" . $this->regex . "\/?$/i";
+
         preg_match($regex, $uri, $arguments);
+
         $params = [];
+
         foreach ($arguments as $key => $value) {
             if (is_string($key)) {
-                $params[$key] = $value;
+                $params[$key] = rawurldecode($value);
             }
         }
+
         return $params;
     }
 
-    public static function get(string $uri, Closure|array $action): Route
+    public static function get(string | array $uri, Closure | array | null $action = null): Route | array
     {
         return app()->router->get($uri, $action);
     }
 
-    public static function post(string $uri, Closure|array $action): Route
+    public static function post(string | array $uri, Closure | array | null $action = null): Route | array
     {
         return app()->router->post($uri, $action);
     }
 
-    public static function put(string $uri, Closure|array $action): Route
+    public static function put(string | array $uri, Closure | array | null $action = null): Route | array
     {
         return app()->router->put($uri, $action);
     }
 
-    public static function delete(string $uri, Closure|array $action): Route
-    {
-        return app()->router->delete($uri, $action);
-    }
-
-    public static function patch(string $uri, Closure|array $action): Route
+    public static function patch(string | array $uri, Closure | array | null $action = null): Route | array
     {
         return app()->router->patch($uri, $action);
     }
 
-    public static function load(string $routesDirectory){
-        foreach (glob($routesDirectory. '/*.php') as $routeFile) {
+    public static function delete(string | array $uri, Closure | array | null $action = null): Route | array
+    {
+        return app()->router->delete($uri, $action);
+    }
+
+    public static function group(
+        string $prefix,
+        Closure | array $callbackOrRoutes,
+        array | string $middlewares = []
+    ): ?array {
+        return app()->router->group($prefix, $callbackOrRoutes, $middlewares);
+    }
+
+    public static function file(
+        string $prefix,
+        Closure | array $action,
+        array | string $extensions = ['png', 'jpg', 'jpeg'],
+        string $parameter = 'filename'
+    ): Route {
+        $prefix = '/' . trim($prefix, '/');
+
+        $extensionPattern = self::extensionPattern($extensions);
+
+        return self::get(
+            $prefix . '/{' . $parameter . ':.*\.(?:' . $extensionPattern . ')}',
+            $action
+        );
+    }
+
+    public static function download(
+        string $prefix,
+        Closure | array $action,
+        array | string $extensions = ['png', 'jpg', 'jpeg'],
+        string $parameter = 'filename'
+    ): Route {
+        $prefix = '/' . trim($prefix, '/');
+
+        $extensionPattern = self::extensionPattern($extensions);
+
+        return self::get(
+            $prefix . '/{' . $parameter . ':.*\.(?:' . $extensionPattern . ')}',
+            $action
+        );
+    }
+
+    private static function extensionPattern(array | string $extensions): string
+    {
+        if (is_string($extensions)) {
+            $extensions = explode('|', str_replace(',', '|', $extensions));
+        }
+
+        $extensions = array_values(array_filter(array_map(
+            fn($extension) => strtolower(trim((string) $extension, ". \t\n\r\0\x0B")),
+            $extensions
+        )));
+
+        if (empty($extensions)) {
+            $extensions = ['png', 'jpg', 'jpeg'];
+        }
+
+        $extensions = array_map(
+            fn($extension) => preg_quote($extension, '/'),
+            $extensions
+        );
+
+        return implode('|', $extensions);
+    }
+
+    public static function load(string $routesDirectory): void
+    {
+        foreach (glob($routesDirectory . '/*.php') as $routeFile) {
             require_once $routeFile;
         }
     }
-
+    public static function controller(
+        string $controller,
+        string | Closure | array $prefixOrRoutesOrCallback,
+        Closure | array | string | null $routesOrCallbackOrMiddlewares = null,
+        array | string $middlewares = []
+    ): void {
+        app()->router->controller(
+            $controller,
+            $prefixOrRoutesOrCallback,
+            $routesOrCallbackOrMiddlewares,
+            $middlewares
+        );
+    }
 }

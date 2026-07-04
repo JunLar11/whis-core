@@ -14,7 +14,9 @@
           "src/Helpers/session.php",
           "src/Helpers/auth.php",
           "src/Helpers/files.php",
-          "src/Helpers/csrf.php"
+          "src/Helpers/csrf.php",
+          "src/Helpers/routes.php",
+          "src/Helpers/api_auth.php"
         ]
     },
     "scripts": {

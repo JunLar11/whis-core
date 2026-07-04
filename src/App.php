@@ -136,11 +136,7 @@ class App
 
     protected function expectsJson(Request $request): bool
     {
-        $accept        = strtolower((string) $request->headers('accept'));
-        $requestedWith = strtolower((string) $request->headers('x-requested-with'));
-
-        return str_contains($accept, 'application/json')
-            || $requestedWith === 'xmlhttprequest';
+        return $request->expectsJson();
     }
 
     /**
@@ -151,10 +147,53 @@ class App
         try {
             $this->terminate($this->router->resolve($this->request));
         } catch (HttpNotFoundException $e) {
-            //throw new \Exception('No route matched.', 404);
-            $this->abort(Response::view('errors/error', ["code" => 404, "text" => "Page not found"], "error")->setStatus(404));
+            /*
+     * Si HttpNotFoundException trae mensaje, probablemente NO es un 404 real de ruta,
+     * sino un error interno del motor de vistas:
+     *
+     * - Template not found
+     * - Layout not found
+     * - Template file not readable
+     * - Template path outside views directory
+     *
+     * En desarrollo no debemos esconderlo detrás de la vista 404.
+     */
+            $isDev = str_contains(strtolower((string) config('app.env')), 'dev')
+            || str_contains(strtolower((string) config('app.env')), 'local');
+
+            if ($isDev && trim($e->getMessage()) !== '') {
+                $this->abort(
+                    Response::text(
+                        "Stencil/View error:\n\n" .
+                        $e->getMessage() . "\n\n" .
+                        "File: " . $e->getFile() . "\n" .
+                        "Line: " . $e->getLine()
+                    )->setStatus(500)
+                );
+            }
+
+            $this->abort(
+                Response::view(
+                    'errors/error',
+                    [
+                        "code" => 404,
+                        "text" => "Page not found",
+                    ],
+                    "error",
+                    "Error 404"
+                )->setStatus(404)
+            );
         } catch (ValidationException $e) {
-            //throw new \Exception('No route matched.', 422);
+            if ($this->expectsJson($this->request)) {
+                $this->abort(
+                    Response::json([
+                        'ok'      => false,
+                        'message' => 'Revisa los campos enviados.',
+                        'errors'  => $e->errors(),
+                    ])->setStatus(422)
+                );
+            }
+
             $this->abort(back()->withErrors($e->errors(), 422));
         } catch (Throwable $e) {
             $error = new ReflectionClass($e);
@@ -195,7 +234,7 @@ class App
                         'code' => 500,
                         'text' => 'An error has occurred',
                     ],
-                    'error'
+                    'error', "Error 500"
                 )->setStatus(500);
 
                 $this->abort($response);

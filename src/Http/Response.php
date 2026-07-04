@@ -184,9 +184,31 @@ class Response
             ->setHeader('Location', $uri);
     }
 
-    public static function view(string $view, array $parameters = [], string $layout = null): self
-    {
-        $content = app(ViewEngine::class)->render($view, $parameters, $layout);
+    public static function view(
+        string $view,
+        array | string $parameters = [],
+        ?string $layout = null,
+        ?string $pageName = null
+    ): self {
+        /*
+     * Permite:
+     *
+     * view('home', 'Inicio')
+     *
+     * En ese caso, el segundo argumento NO son parameters,
+     * sino el pageName.
+     */
+        if (is_string($parameters)) {
+            $pageName   = $parameters;
+            $parameters = [];
+        }
+
+        $content = app(ViewEngine::class)->render(
+            $view,
+            $parameters,
+            $layout,
+            $pageName
+        );
 
         return (new self())
             ->setStatus(200)
@@ -203,5 +225,79 @@ class Response
         session()->flash('_errors', $errors);
         session()->flash('_old', request()->data());
         return $this;
+    }public static function file(
+        string $path,
+        bool $download = false,
+        ?string $downloadName = null,
+        bool $cache = false
+    ): self {
+        $realPath = realpath($path);
+
+        if ($realPath === false || ! is_file($realPath) || ! is_readable($realPath)) {
+            return self::text('404 Not Found')->setStatus(404);
+        }
+
+        $content = file_get_contents($realPath);
+
+        if ($content === false) {
+            return self::text('404 Not Found')->setStatus(404);
+        }
+
+        $response = (new self())
+            ->setStatus(200)
+            ->setContentType(self::mimeType($realPath))
+            ->setContent($content)
+            ->setHeader(
+                'Cache-Control',
+                $cache
+                    ? 'public, max-age=86400, stale-while-revalidate=604800'
+                    : 'private, no-store, max-age=0'
+            );
+
+        if ($download) {
+            $response->setHeader(
+                'Content-Disposition',
+                'attachment; filename="' . addslashes($downloadName ?: basename($realPath)) . '"'
+            );
+        }
+
+        return $response;
     }
+
+    private static function mimeType(string $path): string
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'css'   => 'text/css; charset=UTF-8',
+            'js'    => 'text/javascript; charset=UTF-8',
+            'mjs'   => 'text/javascript; charset=UTF-8',
+            'html'  => 'text/html; charset=UTF-8',
+            'xml'   => 'application/xml; charset=UTF-8',
+            'json'  => 'application/json; charset=UTF-8',
+            'txt'   => 'text/plain; charset=UTF-8',
+            'svg'   => 'image/svg+xml',
+            'webp'  => 'image/webp',
+            'avif'  => 'image/avif',
+            'png'   => 'image/png',
+            'jpg',
+            'jpeg'  => 'image/jpeg',
+            'gif'   => 'image/gif',
+            'ico'   => 'image/x-icon',
+            'pdf'   => 'application/pdf',
+            'mp4'   => 'video/mp4',
+            'webm'  => 'video/webm',
+            'ogg'   => 'video/ogg',
+            default => self::detectMimeType($path),
+        };
+    }
+
+    private static function detectMimeType(string $path): string
+    {
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime  = $finfo->file($path);
+
+        return $mime ?: 'application/octet-stream';
+    }
+
 }

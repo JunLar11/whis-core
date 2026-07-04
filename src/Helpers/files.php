@@ -1,22 +1,19 @@
 <?php
-use Whis\Storage\Storage;
 
-
-function return_bytes(string $val=null) {
-    //var_dump($val);
-    $valString=(string)($val);
-    $val = (int)trim($val);
-    $last = strtolower($valString[strlen($valString)-1]);
-    //var_dump($last);
-    switch($last) {
-        // The 'G' modifier is available
-        case 'g':
-            $val *= 1024;
-        case 'm':
-            $val *= 1024;
-        case 'k':
-            $val *= 1024;
+function return_bytes(?string $val = null): int
+{
+    if ($val === null || trim($val) === '') {
+        return 0;
     }
 
-    return $val;
+    $val    = trim($val);
+    $last   = strtolower(substr($val, -1));
+    $number = (float) $val;
+
+    return match ($last) {
+        'g'     => (int) ($number * 1024 * 1024 * 1024),
+        'm'     => (int) ($number * 1024 * 1024),
+        'k'     => (int) ($number * 1024),
+        default => (int) $number,
+    };
 }
