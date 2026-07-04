@@ -300,4 +300,45 @@ class Response
         return $mime ?: 'application/octet-stream';
     }
 
+    public static function api(
+        array $data = [],
+        string $message = 'OK',
+        int $status = 200,
+        array $meta = []
+    ): self {
+        return self::json([
+            'ok'      => $status >= 200 && $status < 400,
+            'message' => $message,
+            'data'    => (object) $data,
+            'meta'    => (object) $meta,
+        ])->setStatus($status);
+    }
+
+    public static function apiError(
+        string $message = 'Ocurrió un error.',
+        int $status = 400,
+        array $errors = [],
+        ?string $code = null
+    ): self {
+        return self::json([
+            'ok'      => false,
+            'message' => $message,
+            'code'    => $code,
+            'errors'  => (object) $errors,
+        ])->setStatus($status);
+    }
+
+    public static function unauthorized(
+        string $message = 'No autorizado.'
+    ): self {
+        return self::apiError($message, 401)
+            ->setHeader('WWW-Authenticate', 'Bearer');
+    }
+
+    public static function forbidden(
+        string $message = 'No tienes permiso para realizar esta acción.'
+    ): self {
+        return self::apiError($message, 403);
+    }
+
 }

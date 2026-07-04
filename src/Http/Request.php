@@ -174,4 +174,84 @@ class Request
 
         return $file;
     }
+
+    public function input(?string $key = null, mixed $default = null): mixed
+    {
+        $data = array_merge($this->query, $this->data);
+
+        if ($key === null) {
+            return $data;
+        }
+
+        return $data[$key] ?? $default;
+    }
+
+    public function json(?string $key = null, mixed $default = null): mixed
+    {
+        $raw = file_get_contents('php://input');
+
+        if (! is_string($raw) || trim($raw) === '') {
+            return $key === null ? [] : $default;
+        }
+
+        $json = json_decode($raw, true);
+
+        if (! is_array($json)) {
+            return $key === null ? [] : $default;
+        }
+
+        return $key === null ? $json : ($json[$key] ?? $default);
+    }
+
+    public function header(string $key, mixed $default = null): mixed
+    {
+        return $this->headers($key) ?? $default;
+    }
+
+    public function authorizationHeader(): ?string
+    {
+        $header = $this->headers('authorization');
+
+        if (is_string($header) && trim($header) !== '') {
+            return trim($header);
+        }
+
+        $serverHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? $_SERVER['Authorization'] ?? null;
+
+        return is_string($serverHeader) && trim($serverHeader) !== ''
+            ? trim($serverHeader)
+            : null;
+    }
+
+    public function bearerToken(): ?string
+    {
+        $header = $this->authorizationHeader();
+
+        if (! is_string($header)) {
+            return null;
+        }
+
+        if (! preg_match('/^\s*Bearer\s+(.+?)\s*$/i', $header, $matches)) {
+            return null;
+        }
+
+        return trim($matches[1]);
+    }
+
+    public function ip(): string
+    {
+        return (string) (
+            $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        );
+    }
+
+    public function userAgent(): string
+    {
+        return (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
+    }
+
+    public function isApi(): bool
+    {
+        return str_starts_with('/' . trim(parse_url($this->uri(), PHP_URL_PATH) ?: '', '/'), '/api');
+    }
 }

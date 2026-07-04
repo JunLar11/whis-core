@@ -1,11 +1,10 @@
 <?php
-
 namespace Whis\Database;
 
+use ReflectionClass;
 use Whis\Database\Drivers\DatabaseDriver;
 use Whis\Exceptions\DatabaseException;
 use Whis\Exceptions\NoFillableAttributesError;
-use ReflectionClass;
 
 abstract class Model
 {
@@ -28,14 +27,15 @@ abstract class Model
         self::$driver = $driver;
     }
 
-    public static function getDatabaseDriver(): DatabaseDriver{
+    public static function getDatabaseDriver(): DatabaseDriver
+    {
         return self::$driver;
     }
 
     public function __construct()
     {
         if (is_null($this->table)) {
-            $subclass = new ReflectionClass(static::class);
+            $subclass    = new ReflectionClass(static::class);
             $this->table = snake_case("{$subclass->getShortName()}s");
         }
     }
@@ -84,32 +84,35 @@ abstract class Model
             $this->attributes["created_at"] = date("Y-m-d H:i:s");
         }
         $databaseColumns = implode(",", array_keys($this->attributes));
-        $bind = implode(",", array_fill(0, count($this->attributes), "?"));
-            self::$driver->statement(
-                "INSERT INTO $this->table ($databaseColumns) VALUES ($bind)",
-                array_values($this->attributes)
-            );
-        
+        $bind            = implode(",", array_fill(0, count($this->attributes), "?"));
+        self::$driver->statement(
+            "INSERT INTO $this->table ($databaseColumns) VALUES ($bind)",
+            array_values($this->attributes)
+        );
 
         return $this;
     }
 
     public static function create(array $attributes): static
     {
-            return (new static())->massAssign($attributes)->save();
-        
+        return (new static())->massAssign($attributes)->save();
+
     }
 
     public function toArray(): array
     {
-        return array_filter($this->attributes, fn ($attr) => !in_array($attr, $this->hidden));
+        return array_filter(
+            $this->attributes,
+            fn($value, $key) => ! in_array($key, $this->hidden, true),
+            ARRAY_FILTER_USE_BOTH
+        );
     }
 
     public static function first(mixed $orderBy = null, bool $desc = false): ?static
     {
         $instance = new static();
         //Check if orderBy column exists
-        if (!is_null($orderBy) && (!in_array($orderBy, $instance->fillable) && !in_array($orderBy, $instance->hidden))) {
+        if (! is_null($orderBy) && (! in_array($orderBy, $instance->fillable) && ! in_array($orderBy, $instance->hidden))) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
             return null;
         }
@@ -127,17 +130,17 @@ abstract class Model
     public static function find(mixed $id): ?static
     {
         $instance = new static();
-        $result = self::$driver->statement("SELECT * FROM $instance->table WHERE $instance->primaryKey = ?", [$id]);
+        $result   = self::$driver->statement("SELECT * FROM $instance->table WHERE $instance->primaryKey = ?", [$id]);
         if (count($result) == 0) {
             return null;
         }
         return $instance->setAttributes($result[0]);
     }
 
-    public static function all(mixed $orderBy = null, bool $desc = false): array
+    public static function all(mixed $orderBy = null, bool $desc = false) : array
     {
         $instance = new static();
-        if (!is_null($orderBy) && (!in_array($orderBy, $instance->fillable) && !in_array($orderBy, $instance->hidden))) {
+        if (! is_null($orderBy) && (! in_array($orderBy, $instance->fillable) && ! in_array($orderBy, $instance->hidden))) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }
 
@@ -155,7 +158,7 @@ abstract class Model
             $models[] = (new static())->setAttributes($result[$i]);
         }
 
-        return array_map(fn ($user) => $user->toArray(), $models);
+        return array_map(fn($user) => $user->toArray(), $models);
     }
 
     public static function where(mixed $column, mixed $value, mixed $orderBy = null, bool $desc = false): ?array
@@ -164,7 +167,7 @@ abstract class Model
         /*if ((!in_array($column, $instance->fillable) && !in_array($column, $instance->hidden)) || is_null($column)) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }*/
-        if (!is_null($orderBy) && (!in_array($orderBy, $instance->fillable) && !in_array($orderBy, $instance->hidden))) {
+        if (! is_null($orderBy) && (! in_array($orderBy, $instance->fillable) && ! in_array($orderBy, $instance->hidden))) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }
 
@@ -191,16 +194,16 @@ abstract class Model
             $models[] = (new static())->setAttributes($result[$i]);
         }
 
-        return array_map(fn ($user) => $user->toArray(), $models);
+        return array_map(fn($user) => $user->toArray(), $models);
     }
 
-    public static function search(mixed $column, mixed $value, mixed $orderBy = null, bool $desc = false, int $limit=5): ?array
+    public static function search(mixed $column, mixed $value, mixed $orderBy = null, bool $desc = false, int $limit = 5): ?array
     {
         $instance = new static();
         /*if ((!in_array($column, $instance->fillable) && !in_array($column, $instance->hidden)) || is_null($column)) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }*/
-        if (!is_null($orderBy) && (!in_array($orderBy, $instance->fillable) && !in_array($orderBy, $instance->hidden))) {
+        if (! is_null($orderBy) && (! in_array($orderBy, $instance->fillable) && ! in_array($orderBy, $instance->hidden))) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }
 
@@ -211,7 +214,7 @@ abstract class Model
         $column = htmlentities($column);
         $column = filter_var($column, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
-        $query = 'SELECT * FROM ' . $instance->table . ' WHERE ' . $column . ' LIKE %'. $value .'% ORDER BY ' . $orderBy . (($desc == true) ? ' DESC' : ' ASC'). ' LIMIT '. $limit;
+        $query = 'SELECT * FROM ' . $instance->table . ' WHERE ' . $column . ' LIKE %' . $value . '% ORDER BY ' . $orderBy . (($desc == true) ? ' DESC' : ' ASC') . ' LIMIT ' . $limit;
         //return [$query];
 
         $result = self::$driver->statement($query, [':value' => $value]);
@@ -227,7 +230,7 @@ abstract class Model
             $models[] = (new static())->setAttributes($result[$i]);
         }
 
-        return array_map(fn ($user) => $user->toArray(), $models);
+        return array_map(fn($user) => $user->toArray(), $models);
     }
 
     public static function firstWhere(mixed $column, mixed $value, mixed $orderBy = null, bool $desc = false): ?static
@@ -236,7 +239,7 @@ abstract class Model
         /*if ((!in_array($column, $instance->fillable) && !in_array($column, $instance->hidden)) || is_null($column)) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }*/
-        if (!is_null($orderBy) && (!in_array($orderBy, $instance->fillable) && !in_array($orderBy, $instance->hidden))) {
+        if (! is_null($orderBy) && (! in_array($orderBy, $instance->fillable) && ! in_array($orderBy, $instance->hidden))) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }
 
@@ -261,7 +264,6 @@ abstract class Model
         return $instance->setAttributes($result[0]);
     }
 
-
     public function update(mixed $column, mixed $value, mixed $orderBy = null, bool $desc = false): ?static
     {
         if ($this->insertTimestamps) {
@@ -269,8 +271,8 @@ abstract class Model
         }
 
         $databaseColumns = array_keys($this->attributes);
-        $bind = implode(",", array_map(fn ($column) => "$column = ?", $databaseColumns));
-        $id = $this->attributes[$this->primaryKey];
+        $bind            = implode(",", array_map(fn($column) => "$column = ?", $databaseColumns));
+        $id              = $this->attributes[$this->primaryKey];
 
         self::$driver->statement(
             "UPDATE $this->table SET $bind WHERE $this->primaryKey = $id",
@@ -295,7 +297,7 @@ abstract class Model
         /*if ((!in_array($column, $instance->fillable) && !in_array($column, $instance->hidden)) || is_null($column)) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }*/
-        if (!is_null($orderBy) && (!in_array($orderBy, $instance->fillable) && !in_array($orderBy, $instance->hidden))) {
+        if (! is_null($orderBy) && (! in_array($orderBy, $instance->fillable) && ! in_array($orderBy, $instance->hidden))) {
             throw new DatabaseException("Column $orderBy does not exist in table {$instance->table}.");
         }
 
@@ -335,7 +337,7 @@ abstract class Model
             $models[] = (new static())->setAttributes($result[$i]);
         }
 
-        return array_map(fn ($user) => $user->toArray(), $models);
+        return array_map(fn($user) => $user->toArray(), $models);
     }
 
 }
